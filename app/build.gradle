@@ -1,0 +1,57 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.thiaguinho.controlebar'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.thiaguinho.controlebar'
+        minSdk 24
+        targetSdk 35
+        versionCode 8
+        versionName '1.2.1'
+    }
+
+    signingConfigs {
+        stable {
+            storeFile file('signing/controlebar-stable.jks')
+            storePassword System.getenv('BAR_STORE_PASSWORD') ?: 'ControleBar2026'
+            keyAlias System.getenv('BAR_KEY_ALIAS') ?: 'controlebar'
+            keyPassword System.getenv('BAR_KEY_PASSWORD') ?: 'ControleBar2026'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.stable
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.stable
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+
+configurations.configureEach {
+    // Kotlin 1.8+ incorporou as classes dos antigos módulos jdk7/jdk8.
+    // Algumas dependências AndroidX ainda podem solicitar os módulos antigos,
+    // causando Duplicate class no checkDebugDuplicateClasses.
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk7'
+    exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib-jdk8'
+
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-common:1.8.22'
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+}

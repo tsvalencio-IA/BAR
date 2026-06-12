@@ -1,0 +1,19 @@
+CONTROLE DO BAR v1.2.1
+
+CORREÇÃO DE BUILD
+- Corrigida a falha mergeDebugResources causada por arquivos residuais chamados 1 e 2 dentro das pastas mipmap.
+- Adicionado validador automático de recursos Android antes da compilação.
+- O workflow remove somente arquivos inválidos nas pastas de imagens e preserva os ícones ic_launcher.png e ic_launcher_round.png.
+- Validação da assinatura real de todos os arquivos PNG.
+- versionCode: 8
+- versionName: 1.2.1
+
+FUNCIONALIDADES PRESERVADAS
+- Estoque e vendas em SQLite.
+- Exportação e importação completa.
+- Relatórios.
+- Versão DEMO de 3 dias iniciada no primeiro produto.
+- Desbloqueio PRO com a senha administrativa.
+- Guia com voz sincronizada.
+- Ícone profissional do aplicativo.
+- Assinatura estável do APK.
