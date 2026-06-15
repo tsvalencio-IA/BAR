@@ -1,0 +1,26 @@
+Controle do Bar v1.4.0 — Multi-celular offline
+
+Evolução feita sobre a base v1.3.0 funcional.
+
+Novidades:
+- Configuração do celular como GESTOR ou ATENDENTE.
+- ID fixo do aparelho gerado automaticamente e preservado.
+- Botão para exportar movimento do dia em JSON.
+- Ao fechar uma mesa, opção "Fechar e enviar" para gerar o movimento na hora.
+- No celular gestor, opção "Receber e juntar dados do atendente".
+- Junção não substitui o banco atual.
+- Importação de movimento evita duplicidade usando remote_id.
+- Importação baixa o estoque oficial do gestor quando encontra produto correspondente por código de barras ou nome.
+- Se produto não for encontrado no gestor, a venda entra no relatório, mas a baixa de estoque fica sinalizada no resumo como produto não encontrado.
+- Backup completo antigo continua existindo como restauração/substituição.
+
+Uso recomendado:
+1. Celular do gestor: configurar como GESTOR.
+2. Celular do atendente: configurar como ATENDENTE.
+3. Cadastrar produtos com nomes iguais nos celulares, ou melhor, usar código de barras igual.
+4. Atendente fecha mesas e exporta o movimento.
+5. Gestor recebe o arquivo e usa "Receber e juntar dados do atendente".
+
+Importante:
+- Não use "Restaurar backup completo" para juntar celulares; isso substitui tudo.
+- Use "Receber e juntar dados do atendente" para consolidar sem apagar.

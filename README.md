@@ -43,3 +43,76 @@ A v1.1.3 anterior foi assinada por uma chave temporária do GitHub Actions. Ante
 ## Correção v1.2.1 — recursos do ícone
 
 O workflow limpa automaticamente arquivos residuais sem extensão dentro das pastas `mipmap-*` antes da compilação. Isso impede a falha `The file name must end with .xml or .png`, inclusive quando o GitHub cria arquivos extras chamados `1` ou `2` durante um upload manual.
+
+
+## v1.3.0 - Mesas e relatórios visuais
+
+- Adiciona Mesa 1 a Mesa 12.
+- Permite abrir atendimento, adicionar itens e fechar a conta.
+- Exporta relatório diário em HTML.
+- Exporta lista de compras em HTML.
+- Mantém DEMO/PRO, SQLite local, backup JSON e importação completa.
+
+## v1.4.0 — Multi-celular offline
+
+Esta versão permite trabalhar com um celular do gestor e um celular do atendente sem internet.
+
+Fluxo:
+1. No celular do gestor, abra Mais > Configurar este celular > GESTOR.
+2. No celular do atendente, abra Mais > Configurar este celular > ATENDENTE.
+3. O atendente usa mesas/vendas normalmente.
+4. Ao fechar uma mesa, pode tocar em Fechar e enviar.
+5. O app gera um JSON de movimento do dia.
+6. O atendente envia esse arquivo por WhatsApp, Nearby Share, Bluetooth, e-mail ou Drive.
+7. No celular do gestor, abra Mais > Receber e juntar dados do atendente.
+8. Selecione o JSON recebido.
+9. O app adiciona as vendas novas, evita duplicar vendas já importadas e aplica a baixa no estoque oficial.
+
+A função Restaurar backup completo continua disponível, mas ela substitui todos os dados. Para juntar celulares, use apenas Receber e juntar dados do atendente.
+
+## v1.4.1 — Usabilidade por perfil
+
+Esta versão reorganiza o app para o uso real de bar com dois tipos de aparelho:
+
+### Celular do gestor
+Menu inferior:
+- Início
+- Mesas
+- Estoque
+- Relatórios
+- Mais
+
+Foco do gestor:
+- estoque oficial;
+- relatórios consolidados;
+- receber e juntar movimento do atendente;
+- lista de compras;
+- backup completo somente em Configurações avançadas.
+
+### Celular do atendente
+Menu inferior:
+- Início
+- Mesas
+- Resumo
+- Enviar
+- Mais
+
+Foco do atendente:
+- abrir mesa;
+- adicionar itens;
+- fechar atendimento;
+- ver resumo do movimento local;
+- enviar movimento do dia ao gestor.
+
+### Segurança operacional
+As opções perigosas ficam escondidas:
+- Exportar backup completo;
+- Restaurar backup completo.
+
+Elas ficam em **Mais > Configurações avançadas**.
+
+Para juntar dois celulares, use sempre:
+
+**Receber e juntar dados do atendente**
+
+Não use **Restaurar backup completo** para juntar celulares, porque essa opção substitui o banco atual.

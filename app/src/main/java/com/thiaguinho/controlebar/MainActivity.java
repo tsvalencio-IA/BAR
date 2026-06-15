@@ -46,6 +46,11 @@ public class MainActivity extends AppCompatActivity {
 
     private final ActivityResultLauncher<String> exportLauncher=registerForActivityResult(new ActivityResultContracts.CreateDocument("application/json"),uri->{if(uri!=null)exportTo(uri);});
     private final ActivityResultLauncher<String[]> importLauncher=registerForActivityResult(new ActivityResultContracts.OpenDocument(),uri->{if(uri!=null)confirmImport(uri);});
+    private final ActivityResultLauncher<String> movementExportLauncher=registerForActivityResult(new ActivityResultContracts.CreateDocument("application/json"),uri->{if(uri!=null)writePendingMovement(uri);});
+    private final ActivityResultLauncher<String[]> mergeImportLauncher=registerForActivityResult(new ActivityResultContracts.OpenDocument(),uri->{if(uri!=null)confirmMergeImport(uri);});
+    private String pendingHtmlExport="";
+    private String pendingMovementExport="";
+    private final ActivityResultLauncher<String> htmlReportLauncher=registerForActivityResult(new ActivityResultContracts.CreateDocument("text/html"),uri->{if(uri!=null)writePendingHtml(uri);});
 
     @Override protected void onCreate(Bundle b){
         super.onCreate(b);
@@ -63,15 +68,43 @@ public class MainActivity extends AppCompatActivity {
     @Override public void onBackPressed(){if(!backStack.isEmpty()){Runnable r=backStack.pop();suppressHistory=true;r.run();suppressHistory=false;}else super.onBackPressed();}
 
     private void buildShell(){
-        root=new LinearLayout(this);root.setOrientation(LinearLayout.VERTICAL);root.setBackgroundColor(C.bg);root.addView(header());
-        scroll=new ScrollView(this);scroll.setFillViewport(true);content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(12),dp(12),dp(12),dp(90));scroll.addView(content,new ScrollView.LayoutParams(-1,-2));root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-        nav=new LinearLayout(this);nav.setOrientation(LinearLayout.HORIZONTAL);nav.setPadding(dp(5),dp(5),dp(5),dp(5));nav.setBackgroundColor(Color.WHITE);nav.setElevation(dp(10));
-        addNav("Início",()->openProtected(()->showDashboard(true)));addNav("Venda",()->openProtected(()->showSale(true)));addNav("Estoque",()->openProtected(()->showProducts("",true)));addNav("Relatórios",()->openProtected(()->showReports(true)));addNav("Mais",()->showMore(true));root.addView(nav,new LinearLayout.LayoutParams(-1,dp(NAV_H)));setContentView(root);
+        root=new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(C.bg);
+        root.addView(header());
+
+        scroll=new ScrollView(this);
+        scroll.setFillViewport(true);
+        content=new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(12),dp(12),dp(12),dp(90));
+        scroll.addView(content,new ScrollView.LayoutParams(-1,-2));
+        root.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
+
+        nav=new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setPadding(dp(5),dp(5),dp(5),dp(5));
+        nav.setBackgroundColor(Color.WHITE);
+        nav.setElevation(dp(10));
+
+        addNav("Início",()->openProtected(()->showDashboard(true)));
+        addNav("Mesas",()->openProtected(()->showSale(true)));
+        if(isGestor()){
+            addNav("Estoque",()->openProtected(()->showProducts("",true)));
+            addNav("Relatórios",()->openProtected(()->showReports(true)));
+        }else{
+            addNav("Resumo",()->openProtected(()->showAttendantSummary(true)));
+            addNav("Enviar",()->openProtected(()->exportMovementToday()));
+        }
+        addNav("Mais",()->showMore(true));
+
+        root.addView(nav,new LinearLayout.LayoutParams(-1,dp(NAV_H)));
+        setContentView(root);
     }
 
     private View header(){
         LinearLayout h=new LinearLayout(this);h.setOrientation(LinearLayout.HORIZONTAL);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(14),dp(14),dp(10),dp(14));h.setBackgroundColor(C.dark);
-        LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);t.addView(tv("Controle do Bar",21,true,Color.WHITE));t.addView(tv("Vendas • Estoque • Relatórios",12,false,0xFFCBD5E1));h.addView(t,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);t.addView(tv("Controle do Bar",21,true,Color.WHITE));t.addView(tv("Mesas • Vendas • Estoque • Relatórios",12,false,0xFFCBD5E1));h.addView(t,new LinearLayout.LayoutParams(0,-2,1));
         licenseStatus=tv("",11,true,Color.WHITE);licenseStatus.setGravity(Gravity.CENTER);licenseStatus.setPadding(dp(9),0,dp(9),0);licenseStatus.setBackground(bg(C.orange,C.orange,999));licenseStatus.setOnClickListener(v->{if(!license.isPro())showUnlockDialog();else toast("Versão PRO ativa neste aparelho.");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(38));lp.setMargins(0,0,dp(7),0);h.addView(licenseStatus,lp);
         Button help=button("Ajuda",C.blue);help.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));h.addView(help,new LinearLayout.LayoutParams(dp(78),dp(44)));return h;
     }
@@ -84,7 +117,79 @@ public class MainActivity extends AppCompatActivity {
 
     private void prepare(String title,Runnable current,boolean history){if(history&&!suppressHistory&&currentScreen!=null)backStack.push(currentScreen);currentScreen=current;content.removeAllViews();scroll.scrollTo(0,0);LinearLayout top=horizontal(false);Button back=button("‹ Voltar",C.gray);back.setOnClickListener(v->onBackPressed());top.addView(back,new LinearLayout.LayoutParams(dp(92),dp(44)));TextView x=tv(title,22,true,C.text);x.setGravity(Gravity.CENTER_VERTICAL);LinearLayout.LayoutParams xp=new LinearLayout.LayoutParams(0,dp(44),1);xp.setMargins(dp(8),0,0,0);top.addView(x,xp);content.addView(top,full());}
 
-    private void showDashboard(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Visão geral",()->showDashboard(false),history);addLicenseBanner();String today=day.format(new Date());LinearLayout stats=responsiveRow();stats.addView(stat("Vendas hoje",String.valueOf(db.dailyCount(today))),cell());stats.addView(stat("Total hoje",DatabaseHelper.money(db.dailyTotal(today))),cell());content.addView(stats,full());Cursor low=db.lowStockProducts();int lowCount=low.getCount();low.close();View lowCard=stat("Itens para comprar",String.valueOf(lowCount));lowCard.setOnClickListener(v->showBuyReport(true));content.addView(lowCard,full());content.addView(section("Ações rápidas"));LinearLayout actions=responsiveRow();Button sale=button("Nova venda",C.green);sale.setOnClickListener(v->showSale(true));Button product=button("Cadastrar produto",C.blue);product.setOnClickListener(v->showProductForm(null,true));actions.addView(sale,cell());actions.addView(product,cell());content.addView(actions,full());Button reports=button("Abrir relatórios",C.orange);reports.setOnClickListener(v->showReports(true));content.addView(reports,full());}
+    private void showDashboard(boolean history){
+        if(!canUse()){showLockedScreen(false);return;}
+        prepare(isGestor()?"Painel do gestor":"Painel do atendente",()->showDashboard(false),history);
+        addLicenseBanner();
+
+        LinearLayout role=card(isGestor()?0xFFEFF6FF:0xFFF0FDF4,isGestor()?C.blue:C.green);
+        role.addView(tv(isGestor()?"MODO GESTOR":"MODO ATENDENTE",16,true,isGestor()?C.blue:C.green));
+        role.addView(tv(isGestor()?"Este celular é a base principal. Aqui ficam estoque oficial, relatórios e consolidação dos atendentes.":"Tela simplificada para atender mesas, lançar vendas e enviar o movimento ao gestor. Backup e restauração ficam escondidos nas configurações avançadas.",13,false,C.text));
+        Button change=button("Trocar função deste celular",C.dark);
+        change.setOnClickListener(v->showDeviceConfigDialog());
+        role.addView(change,full());
+        content.addView(role,full());
+
+        String today=day.format(new Date());
+        LinearLayout stats=responsiveRow();
+        stats.addView(stat("Vendas hoje",String.valueOf(db.dailyCount(today))),cell());
+        stats.addView(stat("Total hoje",DatabaseHelper.money(db.dailyTotal(today))),cell());
+        content.addView(stats,full());
+
+        Cursor open=db.openTables();
+        int openCount=open.getCount();
+        double openTotal=0;
+        while(open.moveToNext())openTotal+=open.getDouble(open.getColumnIndexOrThrow("total"));
+        open.close();
+        LinearLayout ops=responsiveRow();
+        View mesaCard=stat("Mesas abertas",openCount+" • "+DatabaseHelper.money(openTotal));
+        mesaCard.setOnClickListener(v->showSale(true));
+        ops.addView(mesaCard,cell());
+        if(isGestor()){
+            Cursor low=db.lowStockProducts();
+            int lowCount=low.getCount();
+            low.close();
+            View lowCard=stat("Itens para comprar",String.valueOf(lowCount));
+            lowCard.setOnClickListener(v->showBuyReport(true));
+            ops.addView(lowCard,cell());
+        }else{
+            View sendCard=stat("Envio ao gestor","Movimento do dia");
+            sendCard.setOnClickListener(v->exportMovementToday());
+            ops.addView(sendCard,cell());
+        }
+        content.addView(ops,full());
+
+        content.addView(section(isGestor()?"Ações do gestor":"Ações do atendente"));
+        LinearLayout actions=responsiveRow();
+        Button tables=button(isGestor()?"Abrir mesas / balcão":"Atender mesa / balcão",C.green);
+        tables.setOnClickListener(v->showSale(true));
+        actions.addView(tables,cell());
+        if(isGestor()){
+            Button receive=button("Receber dados do atendente",C.blue);
+            receive.setOnClickListener(v->mergeImportLauncher.launch(new String[]{"application/json","text/plain"}));
+            actions.addView(receive,cell());
+        }else{
+            Button send=button("Enviar movimento ao gestor",C.blue);
+            send.setOnClickListener(v->exportMovementToday());
+            actions.addView(send,cell());
+        }
+        content.addView(actions,full());
+
+        if(isGestor()){
+            LinearLayout manager=responsiveRow();
+            Button product=button("Cadastrar produto",C.blue);
+            product.setOnClickListener(v->showProductForm(null,true));
+            Button reports=button("Relatórios",C.orange);
+            reports.setOnClickListener(v->showReports(true));
+            manager.addView(product,cell());
+            manager.addView(reports,cell());
+            content.addView(manager,full());
+        }else{
+            Button summary=button("Ver resumo do meu movimento",C.orange);
+            summary.setOnClickListener(v->showAttendantSummary(true));
+            content.addView(summary,full());
+        }
+    }
 
     private void showProducts(String search,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Estoque",()->showProducts(search,false),history);EditText q=input("Pesquisar produto, categoria ou código");q.setText(search);Button find=button("Buscar",C.blue);find.setOnClickListener(v->showProducts(q.getText().toString(),false));LinearLayout searchBar=responsiveRow();searchBar.addView(q,cellGrow());searchBar.addView(find,cellFixed(105));content.addView(searchBar,full());Button add=button("+ Cadastrar produto",C.green);add.setOnClickListener(v->showProductForm(null,true));content.addView(add,full());Cursor c=db.products(search);if(c.getCount()==0)content.addView(empty("Nenhum produto encontrado."),full());while(c.moveToNext()){long id=c.getLong(c.getColumnIndexOrThrow("id"));String name=c.getString(c.getColumnIndexOrThrow("name"));String cat=c.getString(c.getColumnIndexOrThrow("category"));double stock=c.getDouble(c.getColumnIndexOrThrow("stock")),min=c.getDouble(c.getColumnIndexOrThrow("min_stock")),price=c.getDouble(c.getColumnIndexOrThrow("price"));String unit=c.getString(c.getColumnIndexOrThrow("unit"));boolean lowStock=stock<=min;LinearLayout card=card(lowStock?0xFFFFF7ED:Color.WHITE,lowStock?C.orange:0xFFE2E8F0);card.addView(tv(name,18,true,C.text));if(!cat.isEmpty())card.addView(tv(cat,12,false,C.muted));LinearLayout metrics=responsiveRow();metrics.addView(metric("Estoque",DatabaseHelper.formatNumber(stock)+" "+unit,lowStock?C.red:C.green),cell());metrics.addView(metric("Mínimo",DatabaseHelper.formatNumber(min)+" "+unit,C.text),cell());metrics.addView(metric("Venda",DatabaseHelper.money(price),C.blue),cell());card.addView(metrics,full());LinearLayout buttons=responsiveRow();Button entry=button("Entrada",C.green);entry.setOnClickListener(v->stockDialog(id,name,true));Button adjust=button("Ajuste",C.orange);adjust.setOnClickListener(v->stockDialog(id,name,false));Button edit=button("Editar",C.blue);edit.setOnClickListener(v->showProductForm(id,true));Button del=button("Arquivar",C.red);del.setOnClickListener(v->confirmArchiveProduct(id,name));buttons.addView(entry,cell());buttons.addView(adjust,cell());buttons.addView(edit,cell());buttons.addView(del,cell());card.addView(buttons,full());content.addView(card,full());}c.close();}
 
@@ -94,31 +199,221 @@ public class MainActivity extends AppCompatActivity {
     private void stockDialog(long id,String name,boolean entry){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);EditText qty=num(entry?"Quantidade de entrada":"Use positivo para entrada ou negativo para saída");if(!entry)qty.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL|InputType.TYPE_NUMBER_FLAG_SIGNED);EditText reason=input("Motivo / observação");box.addView(qty,full());box.addView(reason,full());AlertDialog dialog=new AlertDialog.Builder(this).setTitle((entry?"Entrada de estoque: ":"Ajuste de estoque: ")+name).setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",null).create();dialog.setOnShowListener(x->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{double amount=value(qty);if(entry)amount=Math.abs(amount);try{db.adjustStock(id,amount,entry?"ENTRADA":"AJUSTE",reason.getText().toString().trim(),iso.format(new Date()));dialog.dismiss();toast("Estoque atualizado.");showProducts("",false);}catch(Exception e){toast(e.getMessage());}}));dialog.show();}
     private void confirmArchiveProduct(long id,String name){new AlertDialog.Builder(this).setTitle("Arquivar produto?").setMessage(name+" deixará de aparecer nas vendas e no estoque. O histórico anterior será mantido.").setNegativeButton("Cancelar",null).setPositiveButton("Arquivar",(d,w)->{db.archiveProduct(id);toast("Produto arquivado.");showProducts("",false);}).show();}
 
-    private void showSale(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Nova venda",()->showSale(false),history);cartClear();Cursor c=db.products("");ArrayList<ProductOption> options=new ArrayList<>();while(c.moveToNext())options.add(new ProductOption(c.getLong(c.getColumnIndexOrThrow("id")),c.getString(c.getColumnIndexOrThrow("name")),c.getDouble(c.getColumnIndexOrThrow("price")),c.getDouble(c.getColumnIndexOrThrow("stock")),c.getString(c.getColumnIndexOrThrow("unit"))));c.close();if(options.isEmpty()){content.addView(empty("Cadastre um produto antes de realizar uma venda."),full());Button go=button("Cadastrar produto",C.blue);go.setOnClickListener(v->showProductForm(null,true));content.addView(go,full());return;}
-        Spinner product=new Spinner(this);ArrayList<String> labels=new ArrayList<>();for(ProductOption p:options)labels.add(p.name+" • estoque "+DatabaseHelper.formatNumber(p.stock)+" "+p.unit);product.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,labels));EditText qty=num("Quantidade");qty.setText("1");EditText unitPrice=num("Preço unitário");product.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onNothingSelected(android.widget.AdapterView<?> p){}public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long i){unitPrice.setText(DatabaseHelper.formatNumber(options.get(pos).price));}});content.addView(field("Produto",product));LinearLayout qp=responsiveRow();qp.addView(field("Quantidade",qty),cell());qp.addView(field("Preço unitário",unitPrice),cell());content.addView(qp,full());Button add=button("Adicionar ao carrinho",C.blue);content.addView(add,full());LinearLayout cartBox=card(Color.WHITE,0xFFE2E8F0);content.addView(cartBox,full());Spinner payment=new Spinner(this);payment.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"Dinheiro","PIX","Cartão","Fiado","Outro"}));EditText notes=input("Observações da venda");content.addView(field("Pagamento",payment));content.addView(field("Observações",notes));Button finish=button("Finalizar venda",C.green);content.addView(finish,full());Runnable render=()->renderCart(cartBox);
-        add.setOnClickListener(v->{int pos=product.getSelectedItemPosition();if(pos<0)return;ProductOption p=options.get(pos);double q=value(qty),price=value(unitPrice);if(q<=0){toast("Informe uma quantidade maior que zero.");return;}if(price<0){toast("Preço inválido.");return;}double already=cartQuantity(p.id);if(already+q>p.stock+0.000001){toast("Estoque insuficiente. Disponível: "+DatabaseHelper.formatNumber(p.stock)+" "+p.unit+"; no carrinho: "+DatabaseHelper.formatNumber(already));return;}try{JSONObject o=new JSONObject();o.put("productId",p.id);o.put("productName",p.name);o.put("quantity",q);o.put("unitPrice",price);o.put("subtotal",round2(q*price));cart.put(o);qty.setText("1");render.run();}catch(Exception e){error(e);}});
-        finish.setOnClickListener(v->{if(!canUse()){showLockedScreen(false);return;}if(cart.length()==0){toast("Adicione pelo menos um item.");return;}new AlertDialog.Builder(this).setTitle("Finalizar venda?").setMessage("Total: "+DatabaseHelper.money(cartTotal())+"\nPagamento: "+payment.getSelectedItem()).setNegativeButton("Cancelar",null).setPositiveButton("Finalizar",(d,w)->{try{long id=db.createSale(cart,payment.getSelectedItem().toString(),notes.getText().toString().trim(),iso.format(new Date()));toast("Venda #"+id+" finalizada.");cartClear();showDashboard(false);}catch(Exception e){error(e);}}).show();});render.run();}
+    private void showSale(boolean history){
+        if(!canUse()){showLockedScreen(false);return;}
+        prepare(isGestor()?"Mesas e venda":"Atendimento",()->showSale(false),history);
+        addLicenseBanner();
+
+        if(isAtendente()){
+            LinearLayout tip=card(0xFFF0FDF4,C.green);
+            tip.addView(tv("Tela do atendente",16,true,C.green));
+            tip.addView(tv("Use esta tela para abrir mesa, adicionar itens, fechar atendimento e depois enviar o movimento ao gestor. Ferramentas de backup e restauração não aparecem aqui para evitar erro operacional.",13,false,C.text));
+            content.addView(tip,full());
+        }
+
+        content.addView(section("Venda rápida no balcão"));
+        Button counter=button("Abrir venda de balcão",C.green);
+        counter.setOnClickListener(v->showOrderScreen("Venda balcão","",false,true));
+        content.addView(counter,full());
+
+        if(isAtendente()){
+            Button sendMovement=button("Enviar movimento de hoje para o gestor",C.blue);
+            sendMovement.setOnClickListener(v->exportMovementToday());
+            content.addView(sendMovement,full());
+        }
+
+        content.addView(section("Mesas abertas"));
+        Cursor open=db.openTables();
+        if(open.getCount()==0)content.addView(empty("Nenhuma mesa aberta no momento."),full());
+        while(open.moveToNext()){
+            long id=open.getLong(open.getColumnIndexOrThrow("id"));
+            String table=open.getString(open.getColumnIndexOrThrow("table_name"));
+            double total=open.getDouble(open.getColumnIndexOrThrow("total"));
+            int count=open.getInt(open.getColumnIndexOrThrow("item_count"));
+            LinearLayout card=card(0xFFFFFBEB,C.orange);
+            card.addView(tv(table+" em atendimento",18,true,C.text));
+            card.addView(tv(count+" item(ns) • Total parcial: "+DatabaseHelper.money(total),14,true,C.orange));
+            LinearLayout row=responsiveRow();
+            Button add=button("Adicionar itens",C.blue);
+            add.setOnClickListener(v->showOrderScreen(table,table,true,true));
+            Button close=button("Fechar atendimento",C.green);
+            close.setOnClickListener(v->showCloseTableDialog(table));
+            Button details=button("Ver conta",C.orange);
+            details.setOnClickListener(v->showSaleItems(id,total,true));
+            row.addView(add,cell());
+            row.addView(close,cell());
+            row.addView(details,cell());
+            card.addView(row,full());
+            content.addView(card,full());
+        }
+        open.close();
+
+        content.addView(section("Abrir ou acessar mesa"));
+        LinearLayout grid=null;
+        for(int i=1;i<=12;i++){
+            if((i-1)%3==0){grid=responsiveRow();content.addView(grid,full());}
+            String mesa="Mesa "+i;
+            Button b=button(mesa,C.dark);
+            b.setOnClickListener(v->showOrderScreen(mesa,mesa,true,true));
+            grid.addView(b,cell());
+        }
+    }
+
+    private void showOrderScreen(String title,String tableName,boolean tableMode,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare(title,()->showOrderScreen(title,tableName,tableMode,false),history);cartClear();Cursor c=db.products("");ArrayList<ProductOption> options=new ArrayList<>();while(c.moveToNext())options.add(new ProductOption(c.getLong(c.getColumnIndexOrThrow("id")),c.getString(c.getColumnIndexOrThrow("name")),c.getDouble(c.getColumnIndexOrThrow("price")),c.getDouble(c.getColumnIndexOrThrow("stock")),c.getString(c.getColumnIndexOrThrow("unit"))));c.close();if(tableMode){renderOpenTableSummary(tableName);}if(options.isEmpty()){content.addView(empty("Cadastre um produto antes de realizar uma venda."),full());Button go=button("Cadastrar produto",C.blue);go.setOnClickListener(v->showProductForm(null,true));content.addView(go,full());return;}Spinner product=new Spinner(this);ArrayList<String> labels=new ArrayList<>();for(ProductOption p:options)labels.add(p.name+" • estoque "+DatabaseHelper.formatNumber(p.stock)+" "+p.unit);product.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,labels));EditText qty=num("Quantidade");qty.setText("1");EditText unitPrice=num("Preço unitário");product.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onNothingSelected(android.widget.AdapterView<?> p){}public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long i){unitPrice.setText(DatabaseHelper.formatNumber(options.get(pos).price));}});content.addView(field("Produto",product));LinearLayout qp=responsiveRow();qp.addView(field("Quantidade",qty),cell());qp.addView(field("Preço unitário",unitPrice),cell());content.addView(qp,full());Button add=button("Adicionar ao carrinho",C.blue);content.addView(add,full());LinearLayout cartBox=card(Color.WHITE,0xFFE2E8F0);content.addView(cartBox,full());Spinner payment=new Spinner(this);payment.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"Dinheiro","PIX","Cartão","Fiado","Outro"}));EditText notes=input(tableMode?"Observações da mesa":"Observações da venda");if(!tableMode)content.addView(field("Pagamento",payment));content.addView(field("Observações",notes));Button finish=button(tableMode?"Enviar itens para "+tableName:"Finalizar venda",tableMode?C.orange:C.green);content.addView(finish,full());if(tableMode){Button closeTable=button("Fechar atendimento da "+tableName,C.green);closeTable.setOnClickListener(v->showCloseTableDialog(tableName));content.addView(closeTable,full());}Runnable render=()->renderCart(cartBox);add.setOnClickListener(v->{int pos=product.getSelectedItemPosition();if(pos<0)return;ProductOption p=options.get(pos);double q=value(qty),price=value(unitPrice);if(q<=0){toast("Informe uma quantidade maior que zero.");return;}if(price<0){toast("Preço inválido.");return;}double already=cartQuantity(p.id);if(already+q>p.stock+0.000001){toast("Estoque insuficiente. Disponível: "+DatabaseHelper.formatNumber(p.stock)+" "+p.unit+"; no carrinho: "+DatabaseHelper.formatNumber(already));return;}try{JSONObject o=new JSONObject();o.put("productId",p.id);o.put("productName",p.name);o.put("quantity",q);o.put("unitPrice",price);o.put("subtotal",round2(q*price));cart.put(o);qty.setText("1");render.run();}catch(Exception e){error(e);}});finish.setOnClickListener(v->{if(!canUse()){showLockedScreen(false);return;}if(cart.length()==0){toast("Adicione pelo menos um item.");return;}if(tableMode){new AlertDialog.Builder(this).setTitle("Enviar para "+tableName+"?").setMessage("Total dos novos itens: "+DatabaseHelper.money(cartTotal())).setNegativeButton("Cancelar",null).setPositiveButton("Enviar",(d,w)->{try{long id=db.addItemsToOpenTable(cart,tableName,notes.getText().toString().trim(),iso.format(new Date()));cartClear();toast("Itens enviados para "+tableName+". Atendimento #"+id);showSale(false);}catch(Exception e){error(e);}}).show();}else{new AlertDialog.Builder(this).setTitle("Finalizar venda?").setMessage("Total: "+DatabaseHelper.money(cartTotal())+"\nPagamento: "+payment.getSelectedItem()).setNegativeButton("Cancelar",null).setPositiveButton("Finalizar",(d,w)->{try{long id=db.createSale(cart,payment.getSelectedItem().toString(),notes.getText().toString().trim(),iso.format(new Date()));toast("Venda #"+id+" finalizada.");showDashboard(false);}catch(Exception e){error(e);}}).show();}});render.run();}
+
+    private void renderOpenTableSummary(String tableName){Cursor c=db.openSaleForTable(tableName);try{if(!c.moveToFirst()){content.addView(empty(tableName+" está livre. Adicione itens para abrir o atendimento."),full());return;}long id=c.getLong(c.getColumnIndexOrThrow("id"));double total=c.getDouble(c.getColumnIndexOrThrow("total"));int count=c.getInt(c.getColumnIndexOrThrow("item_count"));LinearLayout card=card(0xFFFFFBEB,C.orange);card.addView(tv(tableName+" aberta",18,true,C.orange));card.addView(tv("Atendimento #"+id+" • "+count+" item(ns) • Total parcial: "+DatabaseHelper.money(total),14,true,C.text));LinearLayout row=responsiveRow();Button details=button("Ver conta",C.blue);details.setOnClickListener(v->showSaleItems(id,total,true));Button close=button("Fechar mesa",C.green);close.setOnClickListener(v->showCloseTableDialog(tableName));row.addView(details,cell());row.addView(close,cell());card.addView(row,full());content.addView(card,full());}finally{c.close();}}
+
+    private void showCloseTableDialog(String tableName){Cursor c=db.openSaleForTable(tableName);try{if(!c.moveToFirst()){toast(tableName+" não tem atendimento aberto.");return;}double total=c.getDouble(c.getColumnIndexOrThrow("total"));LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);box.addView(tv("Total da conta: "+DatabaseHelper.money(total),18,true,C.green),full());Spinner pay=new Spinner(this);pay.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"Dinheiro","PIX","Cartão","Fiado","Outro"}));EditText notes=input("Observações do fechamento");box.addView(field("Forma de pagamento",pay),full());box.addView(field("Observações",notes),full());new AlertDialog.Builder(this).setTitle("Fechar "+tableName).setView(box).setNegativeButton("Cancelar",null).setNeutralButton("Fechar e enviar",(d,w)->{try{long id=db.closeOpenTable(tableName,pay.getSelectedItem().toString(),notes.getText().toString().trim(),iso.format(new Date()));toast(tableName+" fechada. Venda #"+id);showDashboard(false);exportMovementToday();}catch(Exception e){error(e);}}).setPositiveButton("Fechar atendimento",(d,w)->{try{long id=db.closeOpenTable(tableName,pay.getSelectedItem().toString(),notes.getText().toString().trim(),iso.format(new Date()));toast(tableName+" fechada. Venda #"+id);showDashboard(false);}catch(Exception e){error(e);}}).show();}finally{c.close();}}
 
     private void renderCart(LinearLayout box){box.removeAllViews();box.addView(section("Carrinho"));if(cart.length()==0){box.addView(tv("Nenhum item adicionado.",14,false,C.muted));return;}for(int i=0;i<cart.length();i++){try{JSONObject o=cart.getJSONObject(i);int idx=i;LinearLayout item=horizontal(false);TextView t=tv(o.getString("productName")+"\n"+DatabaseHelper.formatNumber(o.getDouble("quantity"))+" × "+DatabaseHelper.money(o.getDouble("unitPrice"))+" = "+DatabaseHelper.money(o.getDouble("subtotal")),14,true,C.text);item.addView(t,new LinearLayout.LayoutParams(0,-2,1));Button remove=button("Remover",C.red);remove.setOnClickListener(v->{cart.remove(idx);renderCart(box);});item.addView(remove,new LinearLayout.LayoutParams(dp(95),dp(44)));box.addView(item,full());}catch(Exception ignored){}}TextView total=tv("TOTAL  "+DatabaseHelper.money(cartTotal()),22,true,C.green);total.setGravity(Gravity.END);box.addView(total,full());}
     private double cartQuantity(long id){double q=0;for(int i=0;i<cart.length();i++)q+=cart.optJSONObject(i)!=null&&cart.optJSONObject(i).optLong("productId")==id?cart.optJSONObject(i).optDouble("quantity"):0;return q;}
     private double cartTotal(){double t=0;for(int i=0;i<cart.length();i++)t+=cart.optJSONObject(i)==null?0:cart.optJSONObject(i).optDouble("subtotal");return round2(t);}
     private void cartClear(){while(cart.length()>0)cart.remove(0);}
 
-    private void showReports(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Relatórios",()->showReports(false),history);Button daily=button("Vendas diárias",C.blue);daily.setOnClickListener(v->showDailyReport(day.format(new Date()),true));Button buy=button("O que precisa comprar",C.orange);buy.setOnClickListener(v->showBuyReport(true));Button historyBtn=button("Histórico de vendas",C.dark);historyBtn.setOnClickListener(v->showSalesHistory(true));content.addView(daily,full());content.addView(buy,full());content.addView(historyBtn,full());}
-    private void showDailyReport(String date,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Vendas do dia",()->showDailyReport(date,false),history);Button choose=button("Data: "+formatDay(date),C.blue);choose.setOnClickListener(v->{Calendar cal=Calendar.getInstance();new DatePickerDialog(this,(p,y,m,d)->showDailyReport(String.format(Locale.US,"%04d-%02d-%02d",y,m+1,d),false),cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH)).show();});content.addView(choose,full());LinearLayout stats=responsiveRow();stats.addView(stat("Total",DatabaseHelper.money(db.dailyTotal(date))),cell());stats.addView(stat("Vendas",String.valueOf(db.dailyCount(date))),cell());content.addView(stats,full());content.addView(section("Por forma de pagamento"));Cursor pay=db.paymentSummary(date);if(pay.getCount()==0)content.addView(empty("Nenhuma venda nesta data."),full());while(pay.moveToNext())content.addView(metric(pay.getString(0),pay.getInt(1)+" venda(s) • "+DatabaseHelper.money(pay.getDouble(2)),C.blue),full());pay.close();content.addView(section("Produtos mais vendidos"));Cursor top=db.topProducts(date);while(top.moveToNext())content.addView(metric(top.getString(0),DatabaseHelper.formatNumber(top.getDouble(1))+" un • "+DatabaseHelper.money(top.getDouble(2)),C.green),full());top.close();content.addView(section("Vendas"));renderSales(db.salesForDay(date));}
-    private void showBuyReport(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Lista de compras",()->showBuyReport(false),history);Cursor c=db.lowStockProducts();if(c.getCount()==0)content.addView(empty("Nenhum produto abaixo do estoque mínimo."),full());while(c.moveToNext()){LinearLayout card=card(0xFFFFF7ED,C.orange);String name=c.getString(c.getColumnIndexOrThrow("name"));double stock=c.getDouble(c.getColumnIndexOrThrow("stock")),min=c.getDouble(c.getColumnIndexOrThrow("min_stock")),suggest=c.getDouble(c.getColumnIndexOrThrow("suggested"));String unit=c.getString(c.getColumnIndexOrThrow("unit"));card.addView(tv(name,18,true,C.red));card.addView(tv("Atual: "+DatabaseHelper.formatNumber(stock)+" "+unit+"\nMínimo: "+DatabaseHelper.formatNumber(min)+" "+unit+"\nComprar: "+DatabaseHelper.formatNumber(suggest)+" "+unit,14,false,C.text));content.addView(card,full());}c.close();}
+    private void showReports(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Relatórios",()->showReports(false),history);String today=day.format(new Date());Button daily=button("Vendas diárias",C.blue);daily.setOnClickListener(v->showDailyReport(today,true));Button buy=button("O que precisa comprar",C.orange);buy.setOnClickListener(v->showBuyReport(true));Button historyBtn=button("Histórico de vendas",C.dark);historyBtn.setOnClickListener(v->showSalesHistory(true));Button html=button("Exportar relatório de hoje em HTML",C.green);html.setOnClickListener(v->exportHtml("relatorio_vendas_"+today+".html",dailyReportHtml(today)));content.addView(daily,full());content.addView(buy,full());content.addView(historyBtn,full());content.addView(html,full());}
+    private void showDailyReport(String date,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Vendas do dia",()->showDailyReport(date,false),history);Button choose=button("Data: "+formatDay(date),C.blue);choose.setOnClickListener(v->{Calendar cal=Calendar.getInstance();new DatePickerDialog(this,(p,y,m,d)->showDailyReport(String.format(Locale.US,"%04d-%02d-%02d",y,m+1,d),false),cal.get(Calendar.YEAR),cal.get(Calendar.MONTH),cal.get(Calendar.DAY_OF_MONTH)).show();});content.addView(choose,full());Button export=button("Exportar este relatório visual",C.green);export.setOnClickListener(v->exportHtml("relatorio_vendas_"+date+".html",dailyReportHtml(date)));content.addView(export,full());LinearLayout stats=responsiveRow();stats.addView(stat("Total",DatabaseHelper.money(db.dailyTotal(date))),cell());stats.addView(stat("Vendas",String.valueOf(db.dailyCount(date))),cell());content.addView(stats,full());content.addView(section("Por forma de pagamento"));Cursor pay=db.paymentSummary(date);if(pay.getCount()==0)content.addView(empty("Nenhuma venda fechada nesta data."),full());while(pay.moveToNext())content.addView(metric(pay.getString(0),pay.getInt(1)+" venda(s) • "+DatabaseHelper.money(pay.getDouble(2)),C.blue),full());pay.close();content.addView(section("Produtos mais vendidos"));Cursor top=db.topProducts(date);while(top.moveToNext())content.addView(metric(top.getString(0),DatabaseHelper.formatNumber(top.getDouble(1))+" un • "+DatabaseHelper.money(top.getDouble(2)),C.green),full());top.close();content.addView(section("Vendas fechadas"));renderSales(db.salesForDay(date));}
+    private void showBuyReport(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Lista de compras",()->showBuyReport(false),history);Button export=button("Exportar lista visual de compras",C.green);export.setOnClickListener(v->exportHtml("lista_de_compras_"+day.format(new Date())+".html",buyReportHtml()));content.addView(export,full());Cursor c=db.lowStockProducts();if(c.getCount()==0)content.addView(empty("Nenhum produto abaixo do estoque mínimo."),full());while(c.moveToNext()){LinearLayout card=card(0xFFFFF7ED,C.orange);String name=c.getString(c.getColumnIndexOrThrow("name"));double stock=c.getDouble(c.getColumnIndexOrThrow("stock")),min=c.getDouble(c.getColumnIndexOrThrow("min_stock")),suggest=c.getDouble(c.getColumnIndexOrThrow("suggested"));String unit=c.getString(c.getColumnIndexOrThrow("unit"));card.addView(tv(name,18,true,C.red));card.addView(tv("Atual: "+DatabaseHelper.formatNumber(stock)+" "+unit+"\nMínimo: "+DatabaseHelper.formatNumber(min)+" "+unit+"\nComprar: "+DatabaseHelper.formatNumber(suggest)+" "+unit,14,false,C.text));content.addView(card,full());}c.close();}
     private void showSalesHistory(boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Histórico de vendas",()->showSalesHistory(false),history);renderSales(db.allSales());}
-    private void renderSales(Cursor c){if(c.getCount()==0)content.addView(empty("Nenhuma venda encontrada."),full());while(c.moveToNext()){long id=c.getLong(c.getColumnIndexOrThrow("id"));String at=c.getString(c.getColumnIndexOrThrow("sold_at"));double total=c.getDouble(c.getColumnIndexOrThrow("total"));String pay=c.getString(c.getColumnIndexOrThrow("payment_method"));int count=c.getInt(c.getColumnIndexOrThrow("item_count"));LinearLayout card=card(Color.WHITE,0xFFE2E8F0);card.addView(tv("Venda #"+id+" • "+DatabaseHelper.money(total),17,true,C.text));card.addView(tv(formatDate(at)+" • "+pay+" • "+count+" item(ns)",13,false,C.muted));Button details=button("Ver detalhes",C.blue);details.setOnClickListener(v->showSaleItems(id,total,true));card.addView(details,full());content.addView(card,full());}c.close();}
-    private void showSaleItems(long saleId,double total,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Venda #"+saleId,()->showSaleItems(saleId,total,false),history);Cursor c=db.saleItems(saleId);while(c.moveToNext()){LinearLayout item=card(Color.WHITE,0xFFE2E8F0);item.addView(tv(c.getString(c.getColumnIndexOrThrow("product_name")),16,true,C.text));item.addView(tv(DatabaseHelper.formatNumber(c.getDouble(c.getColumnIndexOrThrow("quantity")))+" × "+DatabaseHelper.money(c.getDouble(c.getColumnIndexOrThrow("unit_price")))+" = "+DatabaseHelper.money(c.getDouble(c.getColumnIndexOrThrow("subtotal"))),14,false,C.muted));content.addView(item,full());}c.close();content.addView(stat("Total da venda",DatabaseHelper.money(total)),full());}
+    private void renderSales(Cursor c){if(c.getCount()==0)content.addView(empty("Nenhuma venda encontrada."),full());while(c.moveToNext()){long id=c.getLong(c.getColumnIndexOrThrow("id"));String at=c.getString(c.getColumnIndexOrThrow("sold_at"));double total=c.getDouble(c.getColumnIndexOrThrow("total"));String pay=c.getString(c.getColumnIndexOrThrow("payment_method"));int count=c.getInt(c.getColumnIndexOrThrow("item_count"));String table=col(c,"table_name","");String status=col(c,"status","FECHADA");String closed=col(c,"closed_at","");LinearLayout card=card("ABERTA".equals(status)?0xFFFFFBEB:Color.WHITE,"ABERTA".equals(status)?C.orange:0xFFE2E8F0);String prefix=table.isEmpty()?"Venda #"+id:table+" • Venda #"+id;card.addView(tv(prefix+" • "+DatabaseHelper.money(total),17,true,C.text));String when=closed==null||closed.isEmpty()?formatDate(at):formatDate(closed);card.addView(tv(when+" • "+pay+" • "+count+" item(ns)"+("ABERTA".equals(status)?" • EM ATENDIMENTO":""),13,false,C.muted));Button details=button("Ver detalhes",C.blue);details.setOnClickListener(v->showSaleItems(id,total,true));card.addView(details,full());content.addView(card,full());}c.close();}
+    private void showSaleItems(long saleId,double total,boolean history){if(!canUse()){showLockedScreen(false);return;}prepare("Venda #"+saleId,()->showSaleItems(saleId,total,false),history);Cursor c=db.saleItems(saleId);while(c.moveToNext()){LinearLayout item=card(Color.WHITE,0xFFE2E8F0);item.addView(tv(c.getString(c.getColumnIndexOrThrow("product_name")),16,true,C.text));item.addView(tv(DatabaseHelper.formatNumber(c.getDouble(c.getColumnIndexOrThrow("quantity")))+" × "+DatabaseHelper.money(c.getDouble(c.getColumnIndexOrThrow("unit_price")))+" = "+DatabaseHelper.money(c.getDouble(c.getColumnIndexOrThrow("subtotal"))),14,false,C.muted));content.addView(item,full());}c.close();content.addView(stat("Total da conta",DatabaseHelper.money(total)),full());}
+
+    private String col(Cursor c,String name,String fallback){int i=c.getColumnIndex(name);return i>=0&&!c.isNull(i)?c.getString(i):fallback;}
+
+    private void exportHtml(String filename,String html){pendingHtmlExport=html==null?"":html;htmlReportLauncher.launch(filename);}
+    private void writePendingHtml(Uri uri){try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new Exception("Não foi possível criar o relatório.");out.write(pendingHtmlExport.getBytes(StandardCharsets.UTF_8));toast("Relatório exportado em HTML.");}catch(Exception e){error(e);}}
+    private String htmlStart(String title){return "<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>"+esc(title)+"</title><style>body{font-family:Arial,sans-serif;background:#f3f4f6;color:#111827;margin:0;padding:18px}.wrap{max-width:900px;margin:auto}.card{background:white;border:1px solid #e5e7eb;border-radius:16px;padding:14px;margin:10px 0;box-shadow:0 6px 18px #0001}h1{margin:0 0 4px}.muted{color:#64748b}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}.stat{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:12px}table{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden}th,td{border-bottom:1px solid #e5e7eb;padding:9px;text-align:left;font-size:13px}th{background:#111827;color:#fff}.right{text-align:right}.danger{color:#dc2626;font-weight:bold}</style></head><body><div class='wrap'><h1>"+esc(title)+"</h1><div class='muted'>Gerado pelo Controle do Bar em "+esc(formatDate(iso.format(new Date())))+"</div>";}
+    private String htmlEnd(){return "<div class='muted' style='margin-top:20px'>Powered by thIAguinho Soluções</div></div></body></html>";}
+    private String dailyReportHtml(String date){StringBuilder h=new StringBuilder(htmlStart("Relatório de vendas - "+formatDay(date)));h.append("<div class='grid'><div class='stat'><b>Total vendido</b><br><span>").append(DatabaseHelper.money(db.dailyTotal(date))).append("</span></div><div class='stat'><b>Quantidade de vendas</b><br><span>").append(db.dailyCount(date)).append("</span></div></div>");h.append("<h2>Por forma de pagamento</h2><table><tr><th>Forma</th><th class='right'>Vendas</th><th class='right'>Total</th></tr>");Cursor p=db.paymentSummary(date);while(p.moveToNext())h.append("<tr><td>").append(esc(p.getString(0))).append("</td><td class='right'>").append(p.getInt(1)).append("</td><td class='right'>").append(DatabaseHelper.money(p.getDouble(2))).append("</td></tr>");p.close();h.append("</table><h2>Produtos mais vendidos</h2><table><tr><th>Produto</th><th class='right'>Qtd</th><th class='right'>Total</th></tr>");Cursor top=db.topProducts(date);while(top.moveToNext())h.append("<tr><td>").append(esc(top.getString(0))).append("</td><td class='right'>").append(DatabaseHelper.formatNumber(top.getDouble(1))).append("</td><td class='right'>").append(DatabaseHelper.money(top.getDouble(2))).append("</td></tr>");top.close();h.append("</table><h2>Vendas fechadas</h2><table><tr><th>Venda</th><th>Mesa</th><th>Pagamento</th><th class='right'>Itens</th><th class='right'>Total</th></tr>");Cursor sales=db.salesForDay(date);while(sales.moveToNext())h.append("<tr><td>#").append(sales.getLong(sales.getColumnIndexOrThrow("id"))).append("</td><td>").append(esc(col(sales,"table_name",""))).append("</td><td>").append(esc(sales.getString(sales.getColumnIndexOrThrow("payment_method")))).append("</td><td class='right'>").append(sales.getInt(sales.getColumnIndexOrThrow("item_count"))).append("</td><td class='right'>").append(DatabaseHelper.money(sales.getDouble(sales.getColumnIndexOrThrow("total")))).append("</td></tr>");sales.close();h.append("</table>").append(htmlEnd());return h.toString();}
+    private String buyReportHtml(){StringBuilder h=new StringBuilder(htmlStart("Lista do que precisa comprar"));h.append("<table><tr><th>Produto</th><th class='right'>Atual</th><th class='right'>Mínimo</th><th class='right'>Comprar</th><th>Unidade</th></tr>");Cursor c=db.lowStockProducts();while(c.moveToNext()){String unit=c.getString(c.getColumnIndexOrThrow("unit"));h.append("<tr><td class='danger'>").append(esc(c.getString(c.getColumnIndexOrThrow("name")))).append("</td><td class='right'>").append(DatabaseHelper.formatNumber(c.getDouble(c.getColumnIndexOrThrow("stock")))).append("</td><td class='right'>").append(DatabaseHelper.formatNumber(c.getDouble(c.getColumnIndexOrThrow("min_stock")))).append("</td><td class='right'><b>").append(DatabaseHelper.formatNumber(c.getDouble(c.getColumnIndexOrThrow("suggested")))).append("</b></td><td>").append(esc(unit)).append("</td></tr>");}c.close();h.append("</table>").append(htmlEnd());return h.toString();}
+    private String esc(String s){return String.valueOf(s==null?"":s).replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("'","&#39;").replace("\"","&quot;");}
 
     private void showLockedScreen(boolean history){prepare("Versão de demonstração",()->showLockedScreen(false),history);backStack.clear();LinearLayout lock=card(0xFFFFF1F2,C.red);TextView icon=tv("🔒",48,true,C.red);icon.setGravity(Gravity.CENTER);lock.addView(icon,full());TextView title=tv("O período de 3 dias terminou",22,true,C.text);title.setGravity(Gravity.CENTER);lock.addView(title,full());TextView msg=tv("O aplicativo foi bloqueado para novos lançamentos. Seus produtos, estoque, vendas e relatórios permanecem salvos no celular e serão mantidos após a ativação PRO.",14,false,C.text);msg.setGravity(Gravity.CENTER);lock.addView(msg,full());lock.addView(tv("Início da demonstração: "+license.formattedStart()+"\nTérmino: "+license.formattedEnd(),12,true,C.muted),full());Button unlock=button("Desbloquear versão PRO",C.green);unlock.setOnClickListener(v->showUnlockDialog());lock.addView(unlock,full());Button backup=button("Exportar meus dados",C.blue);backup.setOnClickListener(v->exportLauncher.launch("backup_controle_bar_"+day.format(new Date())+".json"));lock.addView(backup,full());Button guide=button("Abrir guia",C.orange);guide.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));lock.addView(guide,full());content.addView(lock,full());}
 
     private void showUnlockDialog(){EditText password=input("Digite a senha de desbloqueio");password.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);box.addView(tv("A ativação mantém todos os dados já cadastrados.",13,false,C.muted),full());box.addView(password,full());AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Desbloquear versão PRO").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Desbloquear",null).create();dialog.setOnShowListener(x->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(license.unlock(password.getText().toString())){dialog.dismiss();updateLicenseStatus();backStack.clear();toast("Versão PRO ativada. Todos os dados foram mantidos.");showDashboard(false);}else{password.setError("Senha incorreta");password.requestFocus();}}));dialog.show();}
 
-    private void showMore(boolean history){prepare("Mais opções",()->showMore(false),history);LinearLayout licenseCard=card(license.isPro()?0xFFF0FDF4:(license.isExpired()?0xFFFFF1F2:0xFFFFFBEB),license.isPro()?C.green:(license.isExpired()?C.red:C.orange));licenseCard.addView(tv(license.isPro()?"VERSÃO PRO ATIVA":license.statusLabel(),17,true,license.isPro()?C.green:(license.isExpired()?C.red:C.orange)));String licenseText=license.isPro()?"Licença liberada neste aparelho. Produtos, estoque e vendas permanecem no SQLite local.":(!license.isTrialStarted()?"Os 3 dias começam no primeiro produto cadastrado.":"Início: "+license.formattedStart()+"\nTérmino: "+license.formattedEnd());licenseCard.addView(tv(licenseText,13,false,C.text));if(!license.isPro()){Button unlock=button(license.isExpired()?"Desbloquear agora":"Ativar versão PRO",C.green);unlock.setOnClickListener(v->showUnlockDialog());licenseCard.addView(unlock,full());}content.addView(licenseCard,full());Button exp=button("Exportar todos os dados",C.blue);exp.setOnClickListener(v->exportLauncher.launch("backup_controle_bar_"+day.format(new Date())+".json"));Button imp=button("Importar backup completo",C.green);imp.setOnClickListener(v->importLauncher.launch(new String[]{"application/json","text/plain"}));Button guide=button("Abrir guia interativo com voz",C.orange);guide.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));content.addView(exp,full());content.addView(imp,full());content.addView(guide,full());TextView warning=tv("A importação substitui todos os dados atuais. Exporte um backup antes. A licença PRO não é apagada pela importação.",13,true,C.red);warning.setBackground(bg(0xFFFFF1F2,C.red,14));warning.setPadding(dp(12),dp(12),dp(12),dp(12));content.addView(warning,full());}
+    private void showMore(boolean history){
+        prepare("Mais opções",()->showMore(false),history);
+
+        LinearLayout licenseCard=card(license.isPro()?0xFFF0FDF4:(license.isExpired()?0xFFFFF1F2:0xFFFFFBEB),license.isPro()?C.green:(license.isExpired()?C.red:C.orange));
+        licenseCard.addView(tv(license.isPro()?"VERSÃO PRO ATIVA":license.statusLabel(),17,true,license.isPro()?C.green:(license.isExpired()?C.red:C.orange)));
+        String licenseText=license.isPro()?"Licença liberada neste aparelho. Produtos, estoque e vendas permanecem no SQLite local.":(!license.isTrialStarted()?"Os 3 dias começam no primeiro produto cadastrado.":"Início: "+license.formattedStart()+"\nTérmino: "+license.formattedEnd());
+        licenseCard.addView(tv(licenseText,13,false,C.text));
+        if(!license.isPro()){
+            Button unlock=button(license.isExpired()?"Desbloquear agora":"Ativar versão PRO",C.green);
+            unlock.setOnClickListener(v->showUnlockDialog());
+            licenseCard.addView(unlock,full());
+        }
+        content.addView(licenseCard,full());
+
+        LinearLayout roleCard=card(isGestor()?0xFFEFF6FF:0xFFF0FDF4,isGestor()?C.blue:C.green);
+        roleCard.addView(tv(isGestor()?"Área do gestor":"Área do atendente",17,true,isGestor()?C.blue:C.green));
+        roleCard.addView(tv("Este aparelho: "+deviceName()+" • "+deviceRole()+"\nID: "+deviceId(),13,false,C.text));
+        Button cfg=button("Configurar este celular",C.dark);
+        cfg.setOnClickListener(v->showDeviceConfigDialog());
+        roleCard.addView(cfg,full());
+
+        if(isGestor()){
+            Button receive=button("Receber e juntar dados do atendente",C.green);
+            receive.setOnClickListener(v->mergeImportLauncher.launch(new String[]{"application/json","text/plain"}));
+            Button reports=button("Relatórios do bar",C.orange);
+            reports.setOnClickListener(v->showReports(true));
+            roleCard.addView(receive,full());
+            roleCard.addView(reports,full());
+            roleCard.addView(tv("Backup e restauração completa ficam escondidos em Configurações avançadas para evitar apagar dados por engano.",12,true,C.muted),full());
+        }else{
+            Button send=button("Enviar movimento de hoje ao gestor",C.blue);
+            send.setOnClickListener(v->exportMovementToday());
+            Button attend=button("Voltar para atendimento",C.green);
+            attend.setOnClickListener(v->showSale(true));
+            roleCard.addView(send,full());
+            roleCard.addView(attend,full());
+            roleCard.addView(tv("O atendente não precisa mexer em backup, estoque avançado ou restauração.",12,true,C.muted),full());
+        }
+        content.addView(roleCard,full());
+
+        Button guide=button("Abrir guia interativo com voz",C.orange);
+        guide.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));
+        content.addView(guide,full());
+
+        Button advanced=button("Configurações avançadas",C.gray);
+        advanced.setOnClickListener(v->confirmAdvancedTools());
+        content.addView(advanced,full());
+    }
+
+    private void showAttendantSummary(boolean history){
+        if(!canUse()){showLockedScreen(false);return;}
+        String today=day.format(new Date());
+        prepare("Resumo do atendente",()->showAttendantSummary(false),history);
+        LinearLayout info=card(0xFFF0FDF4,C.green);
+        info.addView(tv("Movimento local deste celular",16,true,C.green));
+        info.addView(tv("Confira as vendas feitas neste aparelho e envie o arquivo ao gestor no fim do atendimento ou no fechamento do dia.",13,false,C.text));
+        content.addView(info,full());
+        LinearLayout stats=responsiveRow();
+        stats.addView(stat("Vendas hoje",String.valueOf(db.dailyCount(today))),cell());
+        stats.addView(stat("Total hoje",DatabaseHelper.money(db.dailyTotal(today))),cell());
+        content.addView(stats,full());
+        Button send=button("Enviar movimento de hoje ao gestor",C.blue);
+        send.setOnClickListener(v->exportMovementToday());
+        content.addView(send,full());
+        Button tables=button("Voltar para mesas",C.green);
+        tables.setOnClickListener(v->showSale(true));
+        content.addView(tables,full());
+        content.addView(section("Vendas fechadas neste celular"));
+        renderSales(db.salesForDay(today));
+    }
+
+    private void confirmAdvancedTools(){
+        new AlertDialog.Builder(this)
+                .setTitle("Configurações avançadas")
+                .setMessage("Aqui ficam backup completo e restauração. Use com cuidado. Para juntar dois celulares, NÃO use restaurar backup; use 'Receber e juntar dados do atendente'.")
+                .setNegativeButton("Cancelar",null)
+                .setPositiveButton("Abrir",(d,w)->showAdvancedTools(true))
+                .show();
+    }
+
+    private void showAdvancedTools(boolean history){
+        prepare("Configurações avançadas",()->showAdvancedTools(false),history);
+        LinearLayout warning=card(0xFFFFF1F2,C.red);
+        warning.addView(tv("Área restrita do gestor",17,true,C.red));
+        warning.addView(tv("Essas opções ficam escondidas porque podem confundir a operação. Restaurar backup completo substitui todos os dados deste celular.",13,true,C.text));
+        content.addView(warning,full());
+
+        Button exp=button("Exportar backup completo",C.blue);
+        exp.setOnClickListener(v->exportLauncher.launch("backup_controle_bar_"+day.format(new Date())+".json"));
+        content.addView(exp,full());
+
+        Button imp=button("Restaurar backup completo",C.red);
+        imp.setOnClickListener(v->importLauncher.launch(new String[]{"application/json","text/plain"}));
+        content.addView(imp,full());
+
+        Button merge=button("Receber e juntar dados do atendente",C.green);
+        merge.setOnClickListener(v->mergeImportLauncher.launch(new String[]{"application/json","text/plain"}));
+        content.addView(merge,full());
+
+        TextView note=tv("Diferença importante:\n• Juntar dados do atendente: soma vendas e não apaga nada.\n• Restaurar backup completo: troca todo o banco deste celular.",13,true,C.red);
+        note.setBackground(bg(0xFFFFF1F2,C.red,14));
+        note.setPadding(dp(12),dp(12),dp(12),dp(12));
+        content.addView(note,full());
+    }
+
     private void exportTo(Uri uri){try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new Exception("Não foi possível abrir o arquivo.");JSONObject root=db.exportAll();root.put("exportedAt",iso.format(new Date()));out.write(root.toString(2).getBytes(StandardCharsets.UTF_8));toast("Backup exportado com sucesso.");}catch(Exception e){error(e);}}
     private void confirmImport(Uri uri){new AlertDialog.Builder(this).setTitle("Restaurar backup?").setMessage("Todos os dados atuais serão substituídos. Esta ação não pode ser desfeita.").setNegativeButton("Cancelar",null).setPositiveButton("Importar",(d,w)->importFrom(uri)).show();}
     private void importFrom(Uri uri){try(BufferedReader r=new BufferedReader(new InputStreamReader(Objects.requireNonNull(getContentResolver().openInputStream(uri)),StandardCharsets.UTF_8))){StringBuilder s=new StringBuilder();String line;while((line=r.readLine())!=null)s.append(line);db.importAll(new JSONObject(s.toString()));if(db.productCount()>0)license.startTrialIfNeeded();updateLicenseStatus();backStack.clear();toast("Backup restaurado com sucesso.");if(license.isExpired())showLockedScreen(false);else showDashboard(false);}catch(Exception e){error(e);}}
+
+    private android.content.SharedPreferences devicePrefs(){return getSharedPreferences("bar_device",MODE_PRIVATE);}
+    private String deviceId(){android.content.SharedPreferences p=devicePrefs();String id=p.getString("device_id","");if(id==null||id.trim().isEmpty()){id="CEL-"+System.currentTimeMillis()+"-"+Math.abs(new Random().nextInt(9999));p.edit().putString("device_id",id).apply();}return id;}
+    private String deviceName(){String n=devicePrefs().getString("device_name","");return n==null||n.trim().isEmpty()?"Celular do bar":n;}
+    private String deviceRole(){String r=devicePrefs().getString("device_role","GESTOR");return r==null||r.trim().isEmpty()?"GESTOR":r;}
+    private boolean isGestor(){return "GESTOR".equals(deviceRole());}
+    private boolean isAtendente(){return "ATENDENTE".equals(deviceRole());}
+    private String safeDeviceId(){return deviceId().replaceAll("[^A-Za-z0-9_-]","_");}
+    private void showDeviceConfigDialog(){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);EditText name=input("Nome deste celular");name.setText(deviceName());Spinner role=new Spinner(this);role.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"GESTOR","ATENDENTE"}));role.setSelection("ATENDENTE".equals(deviceRole())?1:0);box.addView(field("Nome",name),full());box.addView(field("Tipo",role),full());box.addView(tv("GESTOR recebe e junta dados. ATENDENTE envia movimento do dia ou da mesa fechada. Ao salvar, o menu inferior muda automaticamente para o perfil correto.",12,true,C.muted),full());new AlertDialog.Builder(this).setTitle("Configurar celular").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",(d,w)->{devicePrefs().edit().putString("device_name",name.getText().toString().trim()).putString("device_role",role.getSelectedItem().toString()).apply();toast("Configuração salva.");buildShell();updateLicenseStatus();showDashboard(false);}).show();}
+    private void exportMovementToday(){exportMovementForDate(day.format(new Date()));}
+    private void exportMovementForDate(String date){try{JSONObject root=db.exportMovement(date,deviceId(),deviceRole(),iso.format(new Date()));root.put("deviceName",deviceName());pendingMovementExport=root.toString(2);movementExportLauncher.launch("movimento_"+safeDeviceId()+"_"+date+".json");}catch(Exception e){error(e);}}
+    private void writePendingMovement(Uri uri){try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new Exception("Não foi possível criar o arquivo de movimento.");out.write(pendingMovementExport.getBytes(StandardCharsets.UTF_8));toast("Movimento exportado. Envie esse arquivo ao gestor.");}catch(Exception e){error(e);}}
+    private void confirmMergeImport(Uri uri){new AlertDialog.Builder(this).setTitle("Juntar dados do atendente?").setMessage("Esta opção NÃO apaga os dados atuais. Ela adiciona vendas novas, evita duplicidade e baixa o estoque oficial quando encontrar o produto correspondente.").setNegativeButton("Cancelar",null).setPositiveButton("Juntar",(d,w)->mergeFrom(uri)).show();}
+    private void mergeFrom(Uri uri){try(BufferedReader r=new BufferedReader(new InputStreamReader(Objects.requireNonNull(getContentResolver().openInputStream(uri)),StandardCharsets.UTF_8))){StringBuilder s=new StringBuilder();String line;while((line=r.readLine())!=null)s.append(line);JSONObject result=db.mergeMovement(new JSONObject(s.toString()),iso.format(new Date()));String msg="Origem: "+result.optString("originDevice")+"\nVendas importadas: "+result.optInt("importedSales")+"\nVendas já existentes/ignoradas: "+result.optInt("skippedSales")+"\nItens importados: "+result.optInt("items")+"\nBaixas de estoque aplicadas: "+result.optInt("stockApplied")+"\nProdutos não encontrados: "+result.optInt("missingProducts");new AlertDialog.Builder(this).setTitle("Consolidação concluída").setMessage(msg).setPositiveButton("OK",(d,w)->showDashboard(false)).show();}catch(Exception e){error(e);}}
+
 
     private LinearLayout card(int fill,int stroke){LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);v.setPadding(dp(14),dp(14),dp(14),dp(14));v.setBackground(bg(fill,stroke,18));v.setElevation(dp(2));return v;}
     private View stat(String label,String value){LinearLayout c=card(Color.WHITE,0xFFE2E8F0);c.addView(tv(label.toUpperCase(),11,true,C.muted));c.addView(tv(value,20,true,C.text));return c;}

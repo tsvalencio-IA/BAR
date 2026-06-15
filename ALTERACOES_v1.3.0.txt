@@ -1,0 +1,18 @@
+Controle do Bar v1.3.0
+
+Evolução sobre a base funcional v1.2.1, sem remover estoque, vendas, SQLite, DEMO/PRO, backup JSON, guia ou ícone.
+
+Novidades:
+- Fluxo de mesas: Mesa 1 a Mesa 12.
+- Atendimento aberto por mesa.
+- Adicionar itens em mesa já aberta.
+- Fechar atendimento da mesa com forma de pagamento.
+- Baixa de estoque continua automática ao enviar itens para a mesa.
+- Relatórios diários consideram vendas fechadas.
+- Mesas abertas aparecem separadas na tela de vendas e no painel inicial.
+- Exportação visual HTML do relatório diário.
+- Exportação visual HTML da lista do que precisa comprar.
+- Relatórios HTML fáceis de abrir, imprimir ou enviar pelo WhatsApp.
+
+Observação:
+- A versão online com Firebase Realtime Database pode ser criada como branch separada, porque exige autenticação, regras de segurança e sincronização. Esta versão permanece 100% offline e preserva os dados locais.

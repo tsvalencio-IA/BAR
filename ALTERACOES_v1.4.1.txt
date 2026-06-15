@@ -1,0 +1,18 @@
+Controle do Bar v1.4.1 — UX gestor/atendente
+
+Base mantida: v1.4.0 multi-celular offline.
+
+Correções e melhorias de usabilidade:
+- Menu inferior agora muda conforme o perfil do aparelho.
+- Perfil GESTOR mostra: Início, Mesas, Estoque, Relatórios e Mais.
+- Perfil ATENDENTE mostra: Início, Mesas, Resumo, Enviar e Mais.
+- Dashboard do atendente simplificado para atendimento, resumo e envio ao gestor.
+- Dashboard do gestor focado em estoque oficial, relatórios, mesas abertas e recebimento de movimentos.
+- Backup completo e restauração foram escondidos em Configurações avançadas.
+- Restauração completa agora fica separada e com aviso claro de risco.
+- Fluxo correto para juntar celulares continua sendo “Receber e juntar dados do atendente”.
+- Ao trocar GESTOR/ATENDENTE, o menu inferior é reconstruído automaticamente.
+- Mantidos: SQLite local, mesas, vendas, estoque, relatórios, DEMO/PRO, senha *177, guia, ícone e build corrigido.
+
+Artefato GitHub Actions:
+Controle-Bar-v1.4.1-UX-GESTOR-ATENDENTE-APK
