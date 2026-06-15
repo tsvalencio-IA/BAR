@@ -1,13 +1,20 @@
-LEIA ANTES — Controle BAR v1.5.0
+LEIA ANTES — Controle BAR v1.6.0
 
-Este ZIP é o projeto Android nativo para subir no GitHub e gerar o APK pelo GitHub Actions.
+Esta versão evolui a v1.5.0 mantendo SQLite offline, mesas, vendas, estoque, DEMO/PRO e multi-celular offline.
 
-Não é imagem. Não é mockup. É o projeto fonte completo.
+Mudanças principais:
+- Atendente sem menu Mais: foco em Mesas, Pedidos e Enviar.
+- Perfil gestor/atendente minimizável no painel.
+- PIN do gestor é criado pelo próprio gestor na primeira configuração administrativa.
+- Senha PRO não libera perfil gestor e fica apenas na área de ativação PRO.
+- Envio do movimento do atendente via compartilhamento nativo Android: Bluetooth, Nearby Share/Wi-Fi Direct, WhatsApp, Drive, e-mail etc.
+- Produtos agora podem ter fornecedor.
+- Compras necessárias separadas por fornecedor.
+- PDF profissional para vendas do dia.
+- PDF profissional de compras geral e por fornecedor.
+- Opção de compartilhar PDF diretamente com dono do bar ou fornecedores.
 
-PIN inicial do gestor: *177
-Senha PRO: *177
+Artefato esperado no GitHub Actions:
+Controle-Bar-v1.6.0-20-10-GESTOR-ATENDENTE-PDF-APK
 
-Na primeira configuração, defina o celular do gestor como GESTOR digitando o PIN.
-Os celulares de atendimento devem ficar como ATENDENTE.
-
-Atendente não consegue virar gestor sem o PIN administrativo.
+Suba o conteúdo interno do ZIP diretamente na raiz do repositório.

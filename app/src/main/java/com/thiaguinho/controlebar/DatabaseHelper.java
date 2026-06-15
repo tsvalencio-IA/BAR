@@ -15,7 +15,7 @@ import java.util.Locale;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String DB_NAME = "controle_bar.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 5;
 
     public DatabaseHelper(Context context) { super(context, DB_NAME, null, DB_VERSION); }
 
@@ -25,11 +25,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     @Override public void onCreate(SQLiteDatabase db) {
-        db.execSQL("CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,category TEXT DEFAULT '',barcode TEXT DEFAULT '',cost REAL DEFAULT 0,price REAL DEFAULT 0,stock REAL DEFAULT 0,min_stock REAL DEFAULT 0,unit TEXT DEFAULT 'un',active INTEGER DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE products (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,category TEXT DEFAULT '',barcode TEXT DEFAULT '',cost REAL DEFAULT 0,price REAL DEFAULT 0,stock REAL DEFAULT 0,min_stock REAL DEFAULT 0,unit TEXT DEFAULT 'un',supplier TEXT DEFAULT '',active INTEGER DEFAULT 1,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)");
         db.execSQL("CREATE TABLE sales (id INTEGER PRIMARY KEY AUTOINCREMENT,total REAL DEFAULT 0,payment_method TEXT DEFAULT 'Dinheiro',notes TEXT DEFAULT '',sold_at TEXT NOT NULL,table_name TEXT DEFAULT '',status TEXT DEFAULT 'FECHADA',closed_at TEXT DEFAULT '',origin_device TEXT DEFAULT '',remote_id TEXT DEFAULT '',imported_at TEXT DEFAULT '')");
         db.execSQL("CREATE TABLE sale_items (id INTEGER PRIMARY KEY AUTOINCREMENT,sale_id INTEGER NOT NULL,product_id INTEGER,product_name TEXT NOT NULL,quantity REAL DEFAULT 0,unit_price REAL DEFAULT 0,subtotal REAL DEFAULT 0,origin_device TEXT DEFAULT '',remote_id TEXT DEFAULT '',FOREIGN KEY(sale_id) REFERENCES sales(id) ON DELETE CASCADE)");
         db.execSQL("CREATE TABLE stock_movements (id INTEGER PRIMARY KEY AUTOINCREMENT,product_id INTEGER NOT NULL,type TEXT NOT NULL,quantity REAL NOT NULL,reason TEXT DEFAULT '',created_at TEXT NOT NULL,origin_device TEXT DEFAULT '',remote_id TEXT DEFAULT '',FOREIGN KEY(product_id) REFERENCES products(id))");
         db.execSQL("CREATE INDEX idx_products_name ON products(name)");
+        db.execSQL("CREATE INDEX idx_products_supplier ON products(supplier)");
         db.execSQL("CREATE INDEX idx_sales_date ON sales(sold_at)");
         db.execSQL("CREATE INDEX idx_sales_remote ON sales(remote_id)");
         db.execSQL("CREATE INDEX idx_sale_items_sale ON sale_items(sale_id)");
@@ -58,18 +59,22 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             addColumn(db, "stock_movements", "remote_id", "TEXT DEFAULT ''");
             db.execSQL("CREATE INDEX IF NOT EXISTS idx_sales_remote ON sales(remote_id)");
         }
+        if (oldVersion < 5) {
+            addColumn(db, "products", "supplier", "TEXT DEFAULT ''");
+            db.execSQL("CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier)");
+        }
     }
 
     private void addColumn(SQLiteDatabase db, String table, String column, String def) {
         try { db.execSQL("ALTER TABLE " + table + " ADD COLUMN " + column + " " + def); } catch (Exception ignored) {}
     }
 
-    public long saveProduct(Long id, String name, String category, String barcode, double cost, double price, double stock, double minStock, String unit, String now) {
+    public long saveProduct(Long id, String name, String category, String barcode, String supplier, double cost, double price, double stock, double minStock, String unit, String now) {
         SQLiteDatabase database = getWritableDatabase();
         database.beginTransaction();
         try {
             ContentValues v = new ContentValues();
-            v.put("name", name); v.put("category", category); v.put("barcode", barcode);
+            v.put("name", name); v.put("category", category); v.put("barcode", barcode); v.put("supplier", supplier==null?"":supplier);
             v.put("cost", cost); v.put("price", price); v.put("stock", stock);
             v.put("min_stock", minStock); v.put("unit", unit); v.put("active", 1); v.put("updated_at", now);
             long result;
@@ -103,10 +108,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public Cursor products(String search) {
         String q=search==null?"":search.trim();
         if(q.isEmpty()) return getReadableDatabase().rawQuery("SELECT * FROM products WHERE active=1 ORDER BY name COLLATE NOCASE",null);
-        return getReadableDatabase().rawQuery("SELECT * FROM products WHERE active=1 AND (name LIKE ? OR category LIKE ? OR barcode LIKE ?) ORDER BY name COLLATE NOCASE",new String[]{"%"+q+"%","%"+q+"%","%"+q+"%"});
+        return getReadableDatabase().rawQuery("SELECT * FROM products WHERE active=1 AND (name LIKE ? OR category LIKE ? OR barcode LIKE ? OR supplier LIKE ?) ORDER BY name COLLATE NOCASE",new String[]{"%"+q+"%","%"+q+"%","%"+q+"%","%"+q+"%"});
     }
 
-    public Cursor lowStockProducts() { return getReadableDatabase().rawQuery("SELECT *,CASE WHEN min_stock-stock>0 THEN min_stock-stock ELSE 0 END AS suggested FROM products WHERE active=1 AND stock<=min_stock ORDER BY (min_stock-stock) DESC,name COLLATE NOCASE",null); }
+    public Cursor lowStockProducts() { return getReadableDatabase().rawQuery("SELECT *,CASE WHEN min_stock-stock>0 THEN min_stock-stock ELSE 0 END AS suggested FROM products WHERE active=1 AND stock<=min_stock ORDER BY supplier COLLATE NOCASE,(min_stock-stock) DESC,name COLLATE NOCASE",null); }
+    public Cursor lowStockProductsBySupplier(String supplier) { String s=supplier==null?"":supplier; return getReadableDatabase().rawQuery("SELECT *,CASE WHEN min_stock-stock>0 THEN min_stock-stock ELSE 0 END AS suggested FROM products WHERE active=1 AND stock<=min_stock AND IFNULL(supplier,'')=? ORDER BY name COLLATE NOCASE",new String[]{s}); }
+    public Cursor suppliersNeedingPurchase() { return getReadableDatabase().rawQuery("SELECT IFNULL(supplier,'') AS supplier,COUNT(*) AS total,SUM(CASE WHEN min_stock-stock>0 THEN min_stock-stock ELSE 0 END) AS suggested_total FROM products WHERE active=1 AND stock<=min_stock GROUP BY IFNULL(supplier,'') ORDER BY CASE WHEN IFNULL(supplier,'')='' THEN 1 ELSE 0 END,supplier COLLATE NOCASE",null); }
     public Cursor stockMovements(long productId) { return getReadableDatabase().rawQuery("SELECT * FROM stock_movements WHERE product_id=? ORDER BY created_at DESC LIMIT 100",new String[]{String.valueOf(productId)}); }
 
     public long createSale(JSONArray items,String paymentMethod,String notes,String soldAt) throws Exception {
@@ -196,7 +203,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try{ensureRemoteIdsForDate(database,date,deviceId.trim(),now);database.setTransactionSuccessful();}finally{database.endTransaction();}
         JSONObject root=new JSONObject();
         root.put("app","Controle do Bar");root.put("format","thiaguinho-bar-movimento-v1");root.put("movementDate",date);root.put("originDevice",deviceId.trim());root.put("originRole",deviceRole==null?"":deviceRole);root.put("exportedAt",now);
-        root.put("products",cursorToJson(getReadableDatabase().rawQuery("SELECT id,name,category,barcode,unit,price FROM products ORDER BY id",null)));
+        root.put("products",cursorToJson(getReadableDatabase().rawQuery("SELECT id,name,category,barcode,supplier,unit,price FROM products ORDER BY id",null)));
         root.put("sales",cursorToJson(getReadableDatabase().rawQuery("SELECT * FROM sales WHERE IFNULL(status,'FECHADA')<>'ABERTA' AND substr(CASE WHEN IFNULL(closed_at,'')='' THEN sold_at ELSE closed_at END,1,10)=? ORDER BY id",new String[]{date})));
         root.put("saleItems",cursorToJson(getReadableDatabase().rawQuery("SELECT si.* FROM sale_items si JOIN sales s ON s.id=si.sale_id WHERE IFNULL(s.status,'FECHADA')<>'ABERTA' AND substr(CASE WHEN IFNULL(s.closed_at,'')='' THEN s.sold_at ELSE s.closed_at END,1,10)=? ORDER BY si.id",new String[]{date})));
         return root;

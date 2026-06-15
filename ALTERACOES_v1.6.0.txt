@@ -1,0 +1,29 @@
+ALTERAÇÕES v1.6.0
+
+1. UX do atendente simplificada:
+- Sem aba Mais.
+- Menu inferior: Início, Mesas, Pedidos e Enviar.
+- Envio do movimento do dia abre o compartilhamento nativo Android.
+
+2. UX do gestor:
+- Menu completo separado.
+- Perfil gestor/atendente minimizável no painel.
+- Configurações avançadas continuam protegidas por PIN.
+
+3. Segurança:
+- PIN do gestor é cadastrado pelo próprio gestor.
+- Senha PRO não é usada como PIN do gestor.
+
+4. Relatórios profissionais:
+- PDF de vendas do dia.
+- PDF de compras geral.
+- PDF de compras por fornecedor.
+- Compartilhamento de PDF pelo Android.
+
+5. Compras por fornecedor:
+- Novo campo Fornecedor no cadastro do produto.
+- Lista de compras agrupada por fornecedor.
+
+6. Multi-celular offline mantido:
+- Atendente exporta movimento.
+- Gestor recebe e junta sem apagar dados.

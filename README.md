@@ -1,19 +1,24 @@
-# Controle BAR v1.5.0 — UX 10/10, gestor protegido e tema claro/escuro
+# Controle BAR v1.6.0 — UX 20/10: gestor, atendente, PDF e compras por fornecedor
 
 Projeto Android nativo para GitHub Actions gerar APK.
 
-## Destaques da v1.5.0
+## Destaques da v1.6.0
 
-- Base preservada da linha funcional v1.4.x.
-- Gestor protegido por PIN administrativo.
-- Atendente não consegue transformar o aparelho em GESTOR sem o PIN.
-- PIN inicial do gestor: `*177`.
-- Opção para alterar o PIN do gestor em Configurações avançadas.
+- Base preservada da linha funcional v1.5.0.
+- Atendente sem aba **Mais**: usa apenas **Início**, **Mesas**, **Pedidos** e **Enviar**.
+- Perfil **Gestor/Atendente** minimizável no painel.
+- PIN do gestor é cadastrado pelo próprio gestor na primeira configuração administrativa.
+- Senha PRO não é usada como PIN administrativo.
+- Modo gestor continua protegido por PIN.
 - Tema escuro e tema claro dentro do app.
-- Visual refinado em estilo Controle BAR: preto/dourado no tema escuro e versão clara para uso diurno.
-- Menus separados para GESTOR e ATENDENTE.
-- Ferramentas perigosas continuam escondidas em Configurações avançadas.
-- Mantém mesas, vendas, estoque, relatórios, DEMO/PRO, guia com voz, multi-celular offline, exportação/importação e consolidação de atendente.
+- Envio do atendente via compartilhamento nativo Android: Bluetooth, Nearby Share/Wi‑Fi Direct, WhatsApp, Drive, e-mail etc.
+- Produtos agora possuem campo **Fornecedor**.
+- Lista de compras separada por fornecedor: Anbev, Cristal, distribuidora etc.
+- PDF profissional de vendas do dia.
+- PDF profissional de compras geral.
+- PDF profissional de compras por fornecedor.
+- Compartilhamento direto de PDF para dono do bar ou fornecedores.
+- Mantém mesas, vendas, estoque, relatórios, DEMO/PRO, guia com voz, SQLite offline, backup/importação e consolidação de atendente.
 
 ## Como subir no GitHub
 
@@ -37,11 +42,11 @@ Não envie uma pasta envolvendo esses arquivos.
 ## Artefato esperado
 
 ```text
-Controle-Bar-v1.5.0-UX-10-SEGURANCA-APK
+Controle-Bar-v1.6.0-20-10-GESTOR-ATENDENTE-PDF-APK
 ```
 
 ## Segurança operacional
 
-O atendente usa somente atendimento, mesas, resumo e envio de movimento. Para virar gestor é obrigatório digitar o PIN administrativo.
+O atendente usa somente atendimento, mesas, pedidos e envio de movimento. Ele não acessa backup completo, restauração ou configurações administrativas.
 
-O gestor usa o celular base, recebe dados do atendente, consolida relatórios e controla estoque oficial.
+O gestor usa o celular base, recebe dados do atendente, consolida relatórios, controla estoque oficial e exporta PDFs profissionais.
