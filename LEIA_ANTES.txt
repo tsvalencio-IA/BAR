@@ -1,24 +1,13 @@
-CONTROLE DO BAR v1.2.0 — PROJETO COMPLETO PARA GITHUB
+LEIA ANTES — Controle BAR v1.5.0
 
-Este ZIP foi criado sobre a base funcional v1.1.3 Kotlin Fix.
-Não é um projeto novo e não altera o applicationId nem o banco SQLite.
+Este ZIP é o projeto Android nativo para subir no GitHub e gerar o APK pelo GitHub Actions.
 
-NOVOS RECURSOS
-- DEMO de 3 dias a partir do primeiro produto cadastrado.
-- Bloqueio sem apagar produtos, estoque ou vendas.
-- Botão Desbloquear e ativação PRO.
-- Guia interativo com voz nativa sincronizada.
-- Ícone profissional para a tela do celular.
-- Chave de assinatura estável para futuras atualizações.
+Não é imagem. Não é mockup. É o projeto fonte completo.
 
-COMO ENVIAR AO GITHUB
-Envie o conteúdo interno deste ZIP diretamente para a raiz do repositório.
-Na raiz devem aparecer: app, .github, build.gradle, settings.gradle e gradle.properties.
+PIN inicial do gestor: *177
+Senha PRO: *177
 
-PRIMEIRA TROCA DA v1.1.3 PARA v1.2.0
-A v1.1.3 foi assinada por uma chave temporária do GitHub Actions.
-1. Exporte o backup JSON na v1.1.3.
-2. Gere o APK v1.2.0.
-3. Se o Android exigir desinstalação, desinstale somente após o backup.
-4. Instale a v1.2.0 e importe o JSON.
-5. A partir da v1.2.0, futuras atualizações usam a mesma assinatura e podem ser instaladas por cima.
+Na primeira configuração, defina o celular do gestor como GESTOR digitando o PIN.
+Os celulares de atendimento devem ficar como ATENDENTE.
+
+Atendente não consegue virar gestor sem o PIN administrativo.

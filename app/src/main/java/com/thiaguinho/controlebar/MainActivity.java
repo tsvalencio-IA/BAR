@@ -56,6 +56,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(b);
         db=new DatabaseHelper(this);
         license=new LicenseManager(this);
+        applyThemePalette();
+        if(!devicePrefs().contains("device_role")) devicePrefs().edit().putString("device_role","ATENDENTE").apply();
         if(db.productCount()>0)license.startTrialIfNeeded();
         buildShell();
         updateLicenseStatus();
@@ -84,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
         nav=new LinearLayout(this);
         nav.setOrientation(LinearLayout.HORIZONTAL);
         nav.setPadding(dp(5),dp(5),dp(5),dp(5));
-        nav.setBackgroundColor(Color.WHITE);
+        nav.setBackgroundColor(C.navBg);
         nav.setElevation(dp(10));
 
         addNav("Início",()->openProtected(()->showDashboard(true)));
@@ -103,8 +105,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private View header(){
-        LinearLayout h=new LinearLayout(this);h.setOrientation(LinearLayout.HORIZONTAL);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(14),dp(14),dp(10),dp(14));h.setBackgroundColor(C.dark);
-        LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);t.addView(tv("Controle do Bar",21,true,Color.WHITE));t.addView(tv("Mesas • Vendas • Estoque • Relatórios",12,false,0xFFCBD5E1));h.addView(t,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout h=new LinearLayout(this);h.setOrientation(LinearLayout.HORIZONTAL);h.setGravity(Gravity.CENTER_VERTICAL);h.setPadding(dp(14),dp(14),dp(10),dp(14));h.setBackgroundColor(C.header);
+        TextView logo=tv("🍺",28,true,C.gold);logo.setGravity(Gravity.CENTER);logo.setBackground(bg(C.surface,C.gold,18));LinearLayout.LayoutParams lpLogo=new LinearLayout.LayoutParams(dp(54),dp(54));lpLogo.setMargins(0,0,dp(10),0);h.addView(logo,lpLogo);
+        LinearLayout t=new LinearLayout(this);t.setOrientation(LinearLayout.VERTICAL);t.addView(tv("Controle BAR",22,true,Color.WHITE));t.addView(tv((isGestor()?"Gestor protegido":"Atendente simplificado")+" • "+(isDarkTheme()?"Tema escuro":"Tema claro"),12,false,C.subtle));h.addView(t,new LinearLayout.LayoutParams(0,-2,1));
         licenseStatus=tv("",11,true,Color.WHITE);licenseStatus.setGravity(Gravity.CENTER);licenseStatus.setPadding(dp(9),0,dp(9),0);licenseStatus.setBackground(bg(C.orange,C.orange,999));licenseStatus.setOnClickListener(v->{if(!license.isPro())showUnlockDialog();else toast("Versão PRO ativa neste aparelho.");});LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-2,dp(38));lp.setMargins(0,0,dp(7),0);h.addView(licenseStatus,lp);
         Button help=button("Ajuda",C.blue);help.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));h.addView(help,new LinearLayout.LayoutParams(dp(78),dp(44)));return h;
     }
@@ -122,10 +125,8 @@ public class MainActivity extends AppCompatActivity {
         prepare(isGestor()?"Painel do gestor":"Painel do atendente",()->showDashboard(false),history);
         addLicenseBanner();
 
-        LinearLayout role=card(isGestor()?0xFFEFF6FF:0xFFF0FDF4,isGestor()?C.blue:C.green);
-        role.addView(tv(isGestor()?"MODO GESTOR":"MODO ATENDENTE",16,true,isGestor()?C.blue:C.green));
-        role.addView(tv(isGestor()?"Este celular é a base principal. Aqui ficam estoque oficial, relatórios e consolidação dos atendentes.":"Tela simplificada para atender mesas, lançar vendas e enviar o movimento ao gestor. Backup e restauração ficam escondidos nas configurações avançadas.",13,false,C.text));
-        Button change=button("Trocar função deste celular",C.dark);
+        LinearLayout role=heroCard(isGestor()?"GESTOR PROTEGIDO":"ATENDENTE",isGestor()?"Acesso administrativo protegido por PIN. Este celular recebe dados dos atendentes, controla o estoque oficial e exibe relatórios completos.":"Acesso simplificado para atendimento. O atendente abre mesas, lança itens, fecha contas e envia o movimento ao gestor.",isGestor()?"🔐":"👤");
+        Button change=button(isGestor()?"Ajustar perfil / segurança":"Configurar aparelho",C.gold);
         change.setOnClickListener(v->showDeviceConfigDialog());
         role.addView(change,full());
         content.addView(role,full());
@@ -308,7 +309,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout roleCard=card(isGestor()?0xFFEFF6FF:0xFFF0FDF4,isGestor()?C.blue:C.green);
         roleCard.addView(tv(isGestor()?"Área do gestor":"Área do atendente",17,true,isGestor()?C.blue:C.green));
         roleCard.addView(tv("Este aparelho: "+deviceName()+" • "+deviceRole()+"\nID: "+deviceId(),13,false,C.text));
-        Button cfg=button("Configurar este celular",C.dark);
+        Button cfg=button("Configurar perfil deste celular",C.dark);
         cfg.setOnClickListener(v->showDeviceConfigDialog());
         roleCard.addView(cfg,full());
 
@@ -334,6 +335,10 @@ public class MainActivity extends AppCompatActivity {
         Button guide=button("Abrir guia interativo com voz",C.orange);
         guide.setOnClickListener(v->startActivity(new Intent(this,GuideActivity.class)));
         content.addView(guide,full());
+
+        Button visual=button(isDarkTheme()?"Ativar tema claro":"Ativar tema escuro",C.gold);
+        visual.setOnClickListener(v->toggleTheme());
+        content.addView(visual,full());
 
         Button advanced=button("Configurações avançadas",C.gray);
         advanced.setOnClickListener(v->confirmAdvancedTools());
@@ -363,12 +368,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void confirmAdvancedTools(){
-        new AlertDialog.Builder(this)
-                .setTitle("Configurações avançadas")
-                .setMessage("Aqui ficam backup completo e restauração. Use com cuidado. Para juntar dois celulares, NÃO use restaurar backup; use 'Receber e juntar dados do atendente'.")
-                .setNegativeButton("Cancelar",null)
-                .setPositiveButton("Abrir",(d,w)->showAdvancedTools(true))
-                .show();
+        requestAdminPin("Acesso restrito do gestor",()->{
+            new AlertDialog.Builder(this)
+                    .setTitle("Configurações avançadas")
+                    .setMessage("Aqui ficam backup completo, restauração e segurança. Use com cuidado. Para juntar dois celulares, NÃO use restaurar backup; use 'Receber e juntar dados do atendente'.")
+                    .setNegativeButton("Cancelar",null)
+                    .setPositiveButton("Abrir",(d,w)->showAdvancedTools(true))
+                    .show();
+        });
     }
 
     private void showAdvancedTools(boolean history){
@@ -390,6 +397,14 @@ public class MainActivity extends AppCompatActivity {
         merge.setOnClickListener(v->mergeImportLauncher.launch(new String[]{"application/json","text/plain"}));
         content.addView(merge,full());
 
+        Button theme=button(isDarkTheme()?"Mudar para tema claro":"Mudar para tema escuro",C.gold);
+        theme.setOnClickListener(v->toggleTheme());
+        content.addView(theme,full());
+
+        Button pin=button("Alterar PIN do gestor",C.dark);
+        pin.setOnClickListener(v->showChangeAdminPinDialog());
+        content.addView(pin,full());
+
         TextView note=tv("Diferença importante:\n• Juntar dados do atendente: soma vendas e não apaga nada.\n• Restaurar backup completo: troca todo o banco deste celular.",13,true,C.red);
         note.setBackground(bg(0xFFFFF1F2,C.red,14));
         note.setPadding(dp(12),dp(12),dp(12),dp(12));
@@ -401,13 +416,21 @@ public class MainActivity extends AppCompatActivity {
     private void importFrom(Uri uri){try(BufferedReader r=new BufferedReader(new InputStreamReader(Objects.requireNonNull(getContentResolver().openInputStream(uri)),StandardCharsets.UTF_8))){StringBuilder s=new StringBuilder();String line;while((line=r.readLine())!=null)s.append(line);db.importAll(new JSONObject(s.toString()));if(db.productCount()>0)license.startTrialIfNeeded();updateLicenseStatus();backStack.clear();toast("Backup restaurado com sucesso.");if(license.isExpired())showLockedScreen(false);else showDashboard(false);}catch(Exception e){error(e);}}
 
     private android.content.SharedPreferences devicePrefs(){return getSharedPreferences("bar_device",MODE_PRIVATE);}
+    private android.content.SharedPreferences uiPrefs(){return getSharedPreferences("bar_ui",MODE_PRIVATE);}
     private String deviceId(){android.content.SharedPreferences p=devicePrefs();String id=p.getString("device_id","");if(id==null||id.trim().isEmpty()){id="CEL-"+System.currentTimeMillis()+"-"+Math.abs(new Random().nextInt(9999));p.edit().putString("device_id",id).apply();}return id;}
     private String deviceName(){String n=devicePrefs().getString("device_name","");return n==null||n.trim().isEmpty()?"Celular do bar":n;}
-    private String deviceRole(){String r=devicePrefs().getString("device_role","GESTOR");return r==null||r.trim().isEmpty()?"GESTOR":r;}
+    private String deviceRole(){String r=devicePrefs().getString("device_role","ATENDENTE");return r==null||r.trim().isEmpty()?"ATENDENTE":r;}
     private boolean isGestor(){return "GESTOR".equals(deviceRole());}
     private boolean isAtendente(){return "ATENDENTE".equals(deviceRole());}
     private String safeDeviceId(){return deviceId().replaceAll("[^A-Za-z0-9_-]","_");}
-    private void showDeviceConfigDialog(){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);EditText name=input("Nome deste celular");name.setText(deviceName());Spinner role=new Spinner(this);role.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"GESTOR","ATENDENTE"}));role.setSelection("ATENDENTE".equals(deviceRole())?1:0);box.addView(field("Nome",name),full());box.addView(field("Tipo",role),full());box.addView(tv("GESTOR recebe e junta dados. ATENDENTE envia movimento do dia ou da mesa fechada. Ao salvar, o menu inferior muda automaticamente para o perfil correto.",12,true,C.muted),full());new AlertDialog.Builder(this).setTitle("Configurar celular").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",(d,w)->{devicePrefs().edit().putString("device_name",name.getText().toString().trim()).putString("device_role",role.getSelectedItem().toString()).apply();toast("Configuração salva.");buildShell();updateLicenseStatus();showDashboard(false);}).show();}
+    private String adminPin(){String p=devicePrefs().getString("admin_pin","");return p==null||p.isEmpty()?"*177":p;}
+    private boolean validAdminPin(String p){return adminPin().equals(String.valueOf(p).trim());}
+    private boolean isDarkTheme(){return uiPrefs().getBoolean("dark_theme",true);}
+    private void applyThemePalette(){if(isDarkTheme())C.darkTheme();else C.lightTheme();}
+    private void toggleTheme(){uiPrefs().edit().putBoolean("dark_theme",!isDarkTheme()).apply();applyThemePalette();buildShell();updateLicenseStatus();showDashboard(false);}
+    private void requestAdminPin(String title,Runnable ok){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),0);EditText pin=input("PIN do gestor");pin.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);box.addView(tv("Para acessar área de gestor, alterar perfil administrativo ou abrir ferramentas avançadas, digite o PIN do gestor.",13,false,C.text),full());box.addView(field("PIN",pin),full());AlertDialog dlg=new AlertDialog.Builder(this).setTitle(title).setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Liberar",null).create();dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{if(validAdminPin(pin.getText().toString())){dlg.dismiss();ok.run();}else{toast("PIN do gestor incorreto.");pin.requestFocus();}}));dlg.show();}
+    private void showChangeAdminPinDialog(){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(8),dp(20),0);EditText current=input("PIN atual");current.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);EditText next=input("Novo PIN do gestor");next.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);box.addView(field("PIN atual",current),full());box.addView(field("Novo PIN",next),full());box.addView(tv("PIN padrão inicial: *177. Depois de alterado, use apenas o novo PIN.",12,true,C.muted),full());AlertDialog dlg=new AlertDialog.Builder(this).setTitle("Alterar PIN do gestor").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",null).create();dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String n=next.getText().toString().trim();if(!validAdminPin(current.getText().toString())){toast("PIN atual incorreto.");return;}if(n.length()<3){toast("Use um PIN com pelo menos 3 caracteres.");return;}devicePrefs().edit().putString("admin_pin",n).apply();dlg.dismiss();toast("PIN do gestor alterado.");}));dlg.show();}
+    private void showDeviceConfigDialog(){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(20),dp(6),dp(20),0);EditText name=input("Nome deste celular");name.setText(deviceName());Spinner role=new Spinner(this);role.setAdapter(new ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"ATENDENTE","GESTOR"}));role.setSelection("GESTOR".equals(deviceRole())?1:0);EditText pin=input("PIN do gestor para liberar GESTOR");pin.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);box.addView(field("Nome",name),full());box.addView(field("Tipo",role),full());box.addView(field("PIN se escolher GESTOR",pin),full());box.addView(tv("Segurança: o atendente não consegue transformar o aparelho em GESTOR sem o PIN administrativo. GESTOR recebe e junta dados. ATENDENTE envia movimento do dia ou da mesa fechada.",12,true,C.muted),full());AlertDialog dlg=new AlertDialog.Builder(this).setTitle("Configurar celular").setView(box).setNegativeButton("Cancelar",null).setPositiveButton("Salvar",null).create();dlg.setOnShowListener(x->dlg.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{String selected=role.getSelectedItem().toString();if("GESTOR".equals(selected)&&!validAdminPin(pin.getText().toString())){toast("Para definir como GESTOR, digite o PIN do gestor.");pin.requestFocus();return;}devicePrefs().edit().putString("device_name",name.getText().toString().trim()).putString("device_role",selected).apply();dlg.dismiss();toast("Configuração salva.");buildShell();updateLicenseStatus();showDashboard(false);}));dlg.show();}
     private void exportMovementToday(){exportMovementForDate(day.format(new Date()));}
     private void exportMovementForDate(String date){try{JSONObject root=db.exportMovement(date,deviceId(),deviceRole(),iso.format(new Date()));root.put("deviceName",deviceName());pendingMovementExport=root.toString(2);movementExportLauncher.launch("movimento_"+safeDeviceId()+"_"+date+".json");}catch(Exception e){error(e);}}
     private void writePendingMovement(Uri uri){try(OutputStream out=getContentResolver().openOutputStream(uri)){if(out==null)throw new Exception("Não foi possível criar o arquivo de movimento.");out.write(pendingMovementExport.getBytes(StandardCharsets.UTF_8));toast("Movimento exportado. Envie esse arquivo ao gestor.");}catch(Exception e){error(e);}}
@@ -415,16 +438,18 @@ public class MainActivity extends AppCompatActivity {
     private void mergeFrom(Uri uri){try(BufferedReader r=new BufferedReader(new InputStreamReader(Objects.requireNonNull(getContentResolver().openInputStream(uri)),StandardCharsets.UTF_8))){StringBuilder s=new StringBuilder();String line;while((line=r.readLine())!=null)s.append(line);JSONObject result=db.mergeMovement(new JSONObject(s.toString()),iso.format(new Date()));String msg="Origem: "+result.optString("originDevice")+"\nVendas importadas: "+result.optInt("importedSales")+"\nVendas já existentes/ignoradas: "+result.optInt("skippedSales")+"\nItens importados: "+result.optInt("items")+"\nBaixas de estoque aplicadas: "+result.optInt("stockApplied")+"\nProdutos não encontrados: "+result.optInt("missingProducts");new AlertDialog.Builder(this).setTitle("Consolidação concluída").setMessage(msg).setPositiveButton("OK",(d,w)->showDashboard(false)).show();}catch(Exception e){error(e);}}
 
 
-    private LinearLayout card(int fill,int stroke){LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);v.setPadding(dp(14),dp(14),dp(14),dp(14));v.setBackground(bg(fill,stroke,18));v.setElevation(dp(2));return v;}
-    private View stat(String label,String value){LinearLayout c=card(Color.WHITE,0xFFE2E8F0);c.addView(tv(label.toUpperCase(),11,true,C.muted));c.addView(tv(value,20,true,C.text));return c;}
-    private View metric(String label,String value,int valueColor){LinearLayout c=card(Color.WHITE,0xFFE2E8F0);c.addView(tv(label,12,true,C.muted));c.addView(tv(value,15,true,valueColor));return c;}
+    private LinearLayout heroCard(String title,String message,String icon){LinearLayout box=card(C.hero,C.gold);LinearLayout row=horizontal(false);TextView ic=tv(icon,34,true,C.gold);ic.setGravity(Gravity.CENTER);ic.setBackground(bg(C.surface,C.gold,20));LinearLayout.LayoutParams ip=new LinearLayout.LayoutParams(dp(62),dp(62));ip.setMargins(0,0,dp(12),0);row.addView(ic,ip);LinearLayout txt=new LinearLayout(this);txt.setOrientation(LinearLayout.VERTICAL);txt.addView(tv(title,18,true,C.gold));txt.addView(tv(message,13,false,C.text));row.addView(txt,new LinearLayout.LayoutParams(0,-2,1));box.addView(row,full());return box;}
+
+    private LinearLayout card(int fill,int stroke){if(isDarkTheme()&&fill==Color.WHITE){fill=C.surface;stroke=C.line;}else if(isDarkTheme()&&(fill==0xFFEFF6FF||fill==0xFFF0FDF4||fill==0xFFFFFBEB||fill==0xFFFFF1F2)){fill=C.surface2;}LinearLayout v=new LinearLayout(this);v.setOrientation(LinearLayout.VERTICAL);v.setPadding(dp(14),dp(14),dp(14),dp(14));v.setBackground(bg(fill,stroke,18));v.setElevation(dp(3));return v;}
+    private View stat(String label,String value){LinearLayout c=card(Color.WHITE,C.line);c.addView(tv(label.toUpperCase(),11,true,C.muted));c.addView(tv(value,20,true,C.text));return c;}
+    private View metric(String label,String value,int valueColor){LinearLayout c=card(Color.WHITE,C.line);c.addView(tv(label,12,true,C.muted));c.addView(tv(value,15,true,valueColor));return c;}
     private TextView section(String s){TextView t=tv(s,17,true,C.text);t.setPadding(dp(2),dp(14),0,dp(5));return t;}
-    private TextView empty(String s){TextView t=tv(s,14,true,C.muted);t.setGravity(Gravity.CENTER);t.setPadding(dp(18),dp(24),dp(18),dp(24));t.setBackground(bg(Color.WHITE,0xFFCBD5E1,16));return t;}
+    private TextView empty(String s){TextView t=tv(s,14,true,C.muted);t.setGravity(Gravity.CENTER);t.setPadding(dp(18),dp(24),dp(18),dp(24));t.setBackground(bg(C.surface,C.line,16));return t;}
     private LinearLayout field(String label,View input){LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.addView(tv(label,12,true,C.text));box.addView(input,new LinearLayout.LayoutParams(-1,dp(50)));return box;}
     private LinearLayout responsiveRow(){LinearLayout l=new LinearLayout(this);l.setOrientation(isCompact()?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);return l;}
     private LinearLayout horizontal(boolean verticalOnCompact){LinearLayout l=new LinearLayout(this);l.setOrientation(verticalOnCompact&&isCompact()?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);return l;}
-    private Button button(String s,int color){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setTextSize(12);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setGravity(Gravity.CENTER);b.setBackground(bg(color,color,12));b.setPadding(dp(8),0,dp(8),0);b.setMinHeight(dp(44));return b;}
-    private EditText input(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextSize(15);e.setSingleLine();e.setTextColor(C.text);e.setHintTextColor(0xFF94A3B8);e.setBackground(bg(Color.WHITE,0xFFCBD5E1,12));e.setPadding(dp(12),0,dp(12),0);return e;}
+    private Button button(String s,int color){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setTextSize(12);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setGravity(Gravity.CENTER);b.setBackground(bg(color,color,14));b.setPadding(dp(8),0,dp(8),0);b.setMinHeight(dp(46));return b;}
+    private EditText input(String hint){EditText e=new EditText(this);e.setHint(hint);e.setTextSize(15);e.setSingleLine();e.setTextColor(C.text);e.setHintTextColor(C.muted);e.setBackground(bg(C.inputBg,C.line,12));e.setPadding(dp(12),0,dp(12),0);return e;}
     private EditText num(String hint){EditText e=input(hint);e.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);return e;}
     private TextView tv(String s,int size,boolean bold,int color){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);if(bold)t.setTypeface(Typeface.DEFAULT,Typeface.BOLD);t.setPadding(dp(3),dp(3),dp(3),dp(3));return t;}
     private GradientDrawable bg(int fill,int stroke,int radius){GradientDrawable g=new GradientDrawable();g.setColor(fill);g.setCornerRadius(dp(radius));g.setStroke(dp(1),stroke);return g;}
@@ -442,5 +467,9 @@ public class MainActivity extends AppCompatActivity {
     private void error(Exception e){new AlertDialog.Builder(this).setTitle("Não foi possível concluir").setMessage(e.getMessage()==null?"Erro inesperado.":e.getMessage()).setPositiveButton("OK",null).show();}
 
     private static class ProductOption{final long id;final String name;final double price,stock;final String unit;ProductOption(long id,String name,double price,double stock,String unit){this.id=id;this.name=name;this.price=price;this.stock=stock;this.unit=unit;}}
-    private static class C{static final int bg=0xFFF3F4F6,text=0xFF111827,muted=0xFF64748B,dark=0xFF111827,nav=0xFF1F2937,blue=0xFF2563EB,green=0xFF16A34A,orange=0xFFD97706,red=0xFFDC2626,gray=0xFF475569;}
+    private static class C{
+        static int bg,text,muted,dark,nav,blue,green,orange,red,gray,gold,header,subtle,navBg,surface,surface2,line,inputBg,hero;
+        static void darkTheme(){bg=0xFF070B12;text=0xFFF8FAFC;muted=0xFF94A3B8;dark=0xFF111827;nav=0xFF111827;blue=0xFF2563EB;green=0xFF16A34A;orange=0xFFD97706;red=0xFFDC2626;gray=0xFF475569;gold=0xFFF2B705;header=0xFF05070B;subtle=0xFFCBD5E1;navBg=0xFF05070B;surface=0xFF111827;surface2=0xFF172033;line=0xFF334155;inputBg=0xFF0F172A;hero=0xFF0B1220;}
+        static void lightTheme(){bg=0xFFF3F4F6;text=0xFF111827;muted=0xFF64748B;dark=0xFF111827;nav=0xFF1F2937;blue=0xFF2563EB;green=0xFF16A34A;orange=0xFFD97706;red=0xFFDC2626;gray=0xFF475569;gold=0xFFD97706;header=0xFF111827;subtle=0xFFCBD5E1;navBg=0xFFFFFFFF;surface=0xFFFFFFFF;surface2=0xFFFFFFFF;line=0xFFE2E8F0;inputBg=0xFFFFFFFF;hero=0xFFFFFFFF;}
+    }
 }

@@ -1,0 +1,12 @@
+ALTERAÇÕES v1.5.0
+
+- Gestor protegido por PIN administrativo.
+- PIN inicial: *177.
+- Atendente não consegue mudar o aparelho para GESTOR sem PIN.
+- Configurações avançadas protegidas por PIN.
+- Botão para alterar PIN do gestor.
+- Tema escuro e tema claro dentro do app.
+- Tema escuro com estética preto/dourado estilo Controle BAR.
+- Menu de atendente simplificado mantido.
+- Menu de gestor mantido com recursos administrativos.
+- Base funcional offline preservada.
