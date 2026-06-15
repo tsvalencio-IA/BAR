@@ -1,0 +1,11 @@
+Controle do Bar v1.6.1
+
+Correção de build sobre a v1.6.0.
+
+Corrigido:
+- Removida duplicação do método uiPrefs() em MainActivity.java.
+- Mantidas as funcionalidades da v1.6.0: UX gestor/atendente, PIN do gestor, tema claro/escuro, PDF, relatórios de compras por fornecedor, envio offline ao gestor e DEMO/PRO.
+
+Versão:
+- versionCode 14
+- versionName 1.6.1

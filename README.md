@@ -1,8 +1,8 @@
-# Controle BAR v1.6.0 — UX 20/10: gestor, atendente, PDF e compras por fornecedor
+# Controle BAR v1.6.1 — UX 20/10: gestor, atendente, PDF e compras por fornecedor
 
 Projeto Android nativo para GitHub Actions gerar APK.
 
-## Destaques da v1.6.0
+## Destaques da v1.6.1
 
 - Base preservada da linha funcional v1.5.0.
 - Atendente sem aba **Mais**: usa apenas **Início**, **Mesas**, **Pedidos** e **Enviar**.
@@ -42,7 +42,7 @@ Não envie uma pasta envolvendo esses arquivos.
 ## Artefato esperado
 
 ```text
-Controle-Bar-v1.6.0-20-10-GESTOR-ATENDENTE-PDF-APK
+Controle-Bar-v1.6.1-20-10-GESTOR-ATENDENTE-PDF-APK
 ```
 
 ## Segurança operacional

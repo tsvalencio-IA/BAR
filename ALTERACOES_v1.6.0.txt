@@ -1,4 +1,4 @@
-ALTERAÇÕES v1.6.0
+ALTERAÇÕES v1.6.1
 
 1. UX do atendente simplificada:
 - Sem aba Mais.

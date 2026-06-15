@@ -512,7 +512,6 @@ public class MainActivity extends AppCompatActivity {
     private String adminPin(){String p=devicePrefs().getString("admin_pin","");return p==null?"":p;}
     private boolean hasAdminPin(){return !adminPin().trim().isEmpty();}
     private boolean validAdminPin(String p){return hasAdminPin()&&adminPin().equals(String.valueOf(p).trim());}
-    private android.content.SharedPreferences uiPrefs(){return getSharedPreferences("bar_ui",MODE_PRIVATE);}
     private boolean isDarkTheme(){return uiPrefs().getBoolean("dark_theme",true);}
     private void applyThemePalette(){if(isDarkTheme())C.darkTheme();else C.lightTheme();}
     private void toggleTheme(){uiPrefs().edit().putBoolean("dark_theme",!isDarkTheme()).apply();applyThemePalette();buildShell();updateLicenseStatus();showDashboard(false);}
